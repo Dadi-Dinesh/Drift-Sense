@@ -1,0 +1,94 @@
+"""
+Load Part C's feature tables and Part B's splits into the shape Part D needs.
+
+Every model in Part D sees the same table: one row per window with
+``seq_id, window_id, t_start_ns, <104 features>, <target>``. The target is
+pulled from Part A's ``windows_<seq>.csv`` by ``window_id``, so any label
+column there (``err_mag_m``, ``err_mag_m_bc``, ``err_dx`` ...) can be used
+without regenerating features. ``t_start_ns`` comes along so predictions
+can be plotted over flight time.
+
+Splits are read from ``data/processed/splits.json`` (leave-one-sequence-out)
+and re-checked here: a fold whose train and test sequences overlap raises
+instead of silently leaking overlapping windows into the test set.
+"""
+from __future__ import annotations
+
+import json
+from dataclasses import dataclass
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+
+from vio_drift.features.build_features import feature_names
+
+ID_COLS = ("seq_id", "window_id", "t_start_ns")
+
+
+@dataclass(frozen=True)
+class Fold:
+    """One outer cross-validation fold: train on some sequences, test on one."""
+    fold_id: str
+    train: tuple[str, ...]
+    test: tuple[str, ...]
+
+
+def load_splits(splits_path: Path) -> list[Fold]:
+    """Read leave-one-sequence-out folds from ``splits.json`` and validate them."""
+    data = json.loads(Path(splits_path).read_text())
+    folds = [
+        Fold(fold_id=f["fold_id"], train=tuple(f["train"]), test=tuple(f["test"]))
+        for f in data["folds"]
+    ]
+    for fold in folds:
+        overlap = set(fold.train) & set(fold.test)
+        if overlap:
+            raise ValueError(f"{fold.fold_id}: {sorted(overlap)} in both train and test")
+    return folds
+
+
+def load_dataset(
+    processed_dir: Path,
+    sequences: list[str],
+    target: str = "err_mag_m",
+) -> pd.DataFrame:
+    """
+    Concatenate every sequence's feature table with the chosen ``target``.
+
+    Raises if a feature row has no matching label row (or vice versa), since
+    that would mean features and labels describe different windows.
+    """
+    processed_dir = Path(processed_dir)
+    frames = []
+    for seq in sequences:
+        features = pd.read_csv(processed_dir / f"features_{seq}.csv")
+        features = features.drop(columns=["err_mag_m"])
+        labels = pd.read_csv(
+            processed_dir / f"windows_{seq}.csv",
+            usecols=["window_id", "t_start_ns", target],
+        )
+        if len(features) != len(labels):
+            raise ValueError(
+                f"{seq}: {len(features)} feature rows but {len(labels)} label rows"
+            )
+        merged = features.merge(labels, on="window_id", how="inner", validate="one_to_one")
+        if len(merged) != len(features):
+            raise ValueError(f"{seq}: window_id mismatch between features and labels")
+        frames.append(merged[[*ID_COLS, *feature_names(), target]])
+    return pd.concat(frames, ignore_index=True)
+
+
+def split_xy(
+    df: pd.DataFrame,
+    target: str,
+) -> tuple[pd.DataFrame, np.ndarray, np.ndarray]:
+    """Return ``(X, y, groups)``: feature matrix, target vector, sequence ids."""
+    return df[feature_names()], df[target].to_numpy(), df["seq_id"].to_numpy()
+
+
+def fold_frames(df: pd.DataFrame, fold: Fold) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Rows for a fold's training sequences and for its held-out sequence."""
+    train = df[df["seq_id"].isin(fold.train)].reset_index(drop=True)
+    test = df[df["seq_id"].isin(fold.test)].reset_index(drop=True)
+    return train, test

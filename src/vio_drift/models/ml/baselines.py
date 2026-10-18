@@ -1,0 +1,39 @@
+"""
+Reference models every real model must beat.
+
+* **Mean baseline** — ignores the features and always predicts the average
+  label of the training sequences. If a model cannot beat this, its features
+  carry no usable information about drift on an unseen sequence.
+* **Ridge regression** — a straight-line fit ``y = w . x + b`` with an L2
+  penalty ``alpha * ||w||^2`` that shrinks weights. The penalty matters here:
+  many of the 104 features are near-duplicates (e.g. ``var = std^2``), and an
+  unpenalised linear fit would assign them huge, cancelling weights. Features
+  are standardised inside the pipeline so the penalty treats them equally and
+  the scaler is fit on training rows only.
+"""
+from __future__ import annotations
+
+import numpy as np
+from sklearn.dummy import DummyRegressor
+from sklearn.linear_model import Ridge
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+
+MEAN_PARAM_GRID: dict[str, list] = {}
+
+RIDGE_PARAM_GRID: dict[str, list] = {
+    "ridge__alpha": list(np.logspace(-2, 3, 6)),  # 0.01 ... 1000
+}
+
+
+def build_mean_baseline() -> DummyRegressor:
+    """Predict the training-set mean for every window."""
+    return DummyRegressor(strategy="mean")
+
+
+def build_ridge(alpha: float = 1.0) -> Pipeline:
+    """Standardise features, then fit L2-penalised linear regression."""
+    return Pipeline([
+        ("scaler", StandardScaler()),
+        ("ridge", Ridge(alpha=alpha)),
+    ])
