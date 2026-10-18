@@ -10,6 +10,9 @@ Writes, per target (the "experiment"):
                                              plus a "mean" row (average over folds)
   results/metrics/<target>_importance.csv    RF impurity importance (train) and
                                              permutation importance (held-out) per fold
+  results/metrics/<target>_failure_*.csv     failure analysis: opening-segment errors,
+                                             train/test shift, error by rotation
+                                             quartile, error concentration
   results/predictions/<target>.csv           one row per (fold, window, model)
   figures/ml/<target>_pred_vs_actual.png
   figures/ml/<target>_error_over_time.png
@@ -39,7 +42,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from train_ml import DEFAULT_TARGETS, model_path
-from vio_drift.evaluation import plots
+from vio_drift.evaluation import failure_analysis, plots
 from vio_drift.evaluation.metrics import metrics_table
 from vio_drift.features.build_features import feature_names
 from vio_drift.models.ml.data import load_dataset, load_splits, split_xy, fold_frames
@@ -162,6 +165,15 @@ def main() -> None:
 
         importance = importance_table(df, folds, target, fitted, seed)
         importance.to_csv(metrics_dir / f"{target}_importance.csv", index=False)
+
+        failure = {
+            "segments": failure_analysis.segment_errors(predictions),
+            "shift": failure_analysis.feature_shift(df, folds, target),
+            "rotation": failure_analysis.error_by_quartile(predictions, df),
+            "spikes": failure_analysis.spike_stats(predictions),
+        }
+        for name, frame in failure.items():
+            frame.to_csv(metrics_dir / f"{target}_failure_{name}.csv", index=False)
 
         save_figures(predictions, importance, target, fig_dir)
         print(f"[save] results/metrics/{target}.csv, results/predictions/{target}.csv, "
