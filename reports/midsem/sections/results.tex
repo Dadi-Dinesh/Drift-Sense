@@ -1,0 +1,159 @@
+% Results section (Part D, Milestone 6)
+% Include from reports/midsem/main.tex (needs \usepackage{graphicx}).
+%
+% Every number below is copied from a CSV in results/metrics/, written by
+% `python scripts/train_ml.py` then `python scripts/evaluate.py`. The source
+% file is named in a comment above each table or paragraph. Percentages are
+% computed from the MAE values in the cited table. If the models or data
+% change, re-run both scripts and update these numbers. Figure paths are
+% relative to reports/midsem/.
+
+\section{Results}
+\label{sec:results}
+
+All scores are on the held-out sequence of each leave-one-sequence-out fold
+(Section~\ref{sec:protocol}). The primary target is \texttt{err\_mag\_m}.
+
+\subsection{Held-out performance}
+
+% Source: results/metrics/err_mag_m.csv (column mae; "mean" rows = average over folds)
+\begin{table}[t]
+\centering
+\caption{Held-out MAE (m) for \texttt{err\_mag\_m}, by test sequence.}
+\label{tab:mae}
+\begin{tabular}{lrrrr}
+\hline
+Model & MH\_01\_easy & MH\_02\_easy & MH\_03\_medium & Mean \\
+\hline
+Mean baseline & 0.0094 & 0.0101 & 0.0145 & 0.0113 \\
+Ridge         & 0.0077 & 0.0074 & 0.0151 & \textbf{0.0100} \\
+Random Forest & 0.0077 & 0.0078 & 0.0151 & 0.0102 \\
+SVR (RBF)     & 0.0081 & 0.0074 & 0.0151 & 0.0102 \\
+\hline
+\end{tabular}
+\end{table}
+
+% Source: results/metrics/err_mag_m.csv (column r2)
+\begin{table}[t]
+\centering
+\caption{Held-out $R^2$ for \texttt{err\_mag\_m}, by test sequence.}
+\label{tab:r2}
+\begin{tabular}{lrrrr}
+\hline
+Model & MH\_01\_easy & MH\_02\_easy & MH\_03\_medium & Mean \\
+\hline
+Mean baseline & $-0.037$ & $-0.016$ & $-0.047$ & $-0.033$ \\
+Ridge         & 0.312 & 0.483 & $-0.057$ & 0.246 \\
+Random Forest & 0.312 & 0.405 & $-0.049$ & 0.223 \\
+SVR (RBF)     & 0.249 & 0.466 & $-0.059$ & 0.219 \\
+\hline
+\end{tabular}
+\end{table}
+
+Tables~\ref{tab:mae} and~\ref{tab:r2} give the headline result. On the two
+\emph{easy} sequences every model clearly beats the mean baseline. MAE falls by
+15--27\% (e.g.\ Ridge on MH\_02: $0.0101 \to 0.0074$\,m), and the models explain
+25--48\% of the test sequence's label variance. On \emph{MH\_03\_medium} no
+model beats the baseline: all three reach MAE $0.0151$\,m against the
+baseline's $0.0145$\,m, and $R^2$ is slightly negative. Averaged over folds,
+Ridge is best ($0.0100$\,m), with Random Forest and SVR $0.0002$\,m behind. A
+regularised linear model does as well as the non-linear ones on this data.
+% Source: results/metrics/err_mag_m.csv (column rmse, "mean" rows)
+RMSE tells the same story (fold means: baseline $0.0154$, Ridge $0.0134$,
+Random Forest $0.0136$, SVR $0.0137$\,m).
+
+% Source: results/metrics/err_mag_m_tuning.csv
+Tuning chose strong shrinkage for Ridge ($\alpha = 1000$ in every fold, inside
+a grid that runs to $10^5$). It chose small $C$ (0.1--1) for SVR, i.e.\ smooth
+fits. For Random Forest it chose shallow or large-leaf trees in two of the
+three folds. All three choices point to the same thing: the signal is weak and
+over-fitting is the main risk.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{../../figures/ml/err_mag_m_pred_vs_actual.png}
+\caption{Predicted vs.\ true drift on each held-out sequence. Predictions cluster
+in a narrow band around 0.18--0.19\,m: the models capture the level, not the
+extremes.}
+\label{fig:pred-vs-actual}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{../../figures/ml/err_mag_m_error_over_time.png}
+\caption{True drift and model predictions over each held-out flight.}
+\label{fig:error-over-time}
+\end{figure}
+
+\subsection{Failure analysis}
+
+\paragraph{Gains on easy flights come mostly from the opening segment.}
+% Source: results/metrics/err_mag_m_failure_segments.csv
+On MH\_01 and MH\_02 the first 20\,s sit at a lower drift level (mean true label
+$0.1669$ and $0.1686$\,m) than the rest of the flight ($0.1883$ and $0.1891$\,m;
+Figure~\ref{fig:error-over-time}). The features pick this up. In that segment
+Random Forest cuts the baseline's MAE from $0.0173$ to $0.0080$\,m (MH\_01) and
+from $0.0193$ to $0.0104$\,m (MH\_02). After 25\,s the gain is much smaller:
+$0.0086 \to 0.0078$ and $0.0083 \to 0.0073$\,m. The models track the general
+drift level but not its second-to-second fluctuations.
+
+\paragraph{MH\_03\_medium is out of distribution.}
+% Source: results/metrics/err_mag_m_failure_shift.csv (fold leave_MH_03_medium)
+When MH\_03 is held out, the models train only on the two easy flights. MH\_03
+rotates faster: its mean \texttt{gyro\_mag\_mean} is $0.295$\,rad/s against
+$0.213$ in training, and $4.8\%$ of its windows fall outside the training
+range. Its label is also much more spread out (std $0.0205$\,m against $0.0124$\,m
+in training) and spikes to $0.301$\,m, with $5.2\%$ of its windows outside the
+training label range. The models have never seen this regime.
+% Source: results/metrics/err_mag_m_failure_rotation.csv
+Error also broadly grows with rotation rate: in the fastest-rotating quarter of
+windows, Random Forest's MAE is $1.41\times$, $1.25\times$ and $1.63\times$ its
+value in the slowest quarter (MH\_01, MH\_02, MH\_03).
+
+\paragraph{Most of the remaining error sits in drift spikes.}
+% Source: results/metrics/err_mag_m_failure_spikes.csv
+The worst 10\% of windows carry 28\%, 27\% and 32\% of Random Forest's total
+absolute error (MH\_01, MH\_02, MH\_03). The correlation between prediction and
+truth falls from $0.60$ and $0.70$ on the easy flights to $0.31$ on MH\_03. A
+constant offset explains only 6\%, 10\% and 14\% of the squared error. The
+failure is therefore mostly not a calibration shift that adding a constant
+would fix. The models simply cannot anticipate sudden jumps in drift from
+window-level summary statistics.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.6\linewidth]{../../figures/ml/err_mag_m_importance_permutation.png}
+\caption{Random Forest permutation importance on held-out data: increase in MAE
+when one feature is shuffled, mean $\pm$ s.d.\ over the three folds.}
+\label{fig:importance}
+\end{figure}
+
+\paragraph{Which features matter.}
+% Source: results/metrics/err_mag_m_importance.csv (kind = permutation):
+% mean of the `importance` column over the 3 folds, x1000 to give mm.
+Shuffling one feature on held-out data hurts most for the accelerometer level
+features. For Random Forest these are \texttt{ax\_mean} ($+0.244$\,mm MAE) and
+\texttt{ax\_rms} ($+0.159$\,mm); for SVR they are \texttt{acc\_mag\_mean}
+($+0.309$\,mm), \texttt{ax\_mean} ($+0.291$\,mm) and \texttt{ax\_rms}
+($+0.278$\,mm) (Figure~\ref{fig:importance}). This matches the feature
+analysis of Section~\ref{sec:feature-engineering}. It also fits the label being
+driven mainly by how gravity and accelerometer bias project into the
+integration, not by vigorous motion as such.
+
+\subsection{Bias-corrected target (oracle comparison)}
+
+% Source: results/metrics/err_mag_m_bc.csv
+Running the same pipeline on \texttt{err\_mag\_m\_bc}, the drift left after
+subtracting the dataset's own bias estimates, the best fold-mean MAE is $0.0109$\,m
+(Random Forest) against a baseline of $0.0122$\,m. $R^2$ never exceeds $0.051$
+on any fold and is negative when averaged over folds for every model. Once
+bias is removed, the remaining drift is barely predictable from these motion
+features.
+
+\subsection{Summary}
+The classic models learn a real but modest relationship between IMU window
+statistics and drift. That relationship transfers between the two easy
+flights, but not to the faster MH\_03\_medium flight. The obstacles are
+distribution shift and unpredictable drift spikes, not the choice of model.
+More varied training flights (MH\_04, MH\_05) and models that see the raw
+$200 \times 6$ signal are the natural next steps for Phase~2.
