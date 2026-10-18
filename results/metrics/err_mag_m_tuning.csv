@@ -1,0 +1,13 @@
+target,fold_id,test_seq,model,inner_cv_mae,n_candidates,best_params,fit_seconds
+err_mag_m,leave_MH_01_easy,MH_01_easy,mean,0.012702020903403572,1,{},1.4
+err_mag_m,leave_MH_01_easy,MH_01_easy,ridge,0.01226710646134219,8,"{""ridge__alpha"": 1000.0}",1.7
+err_mag_m,leave_MH_01_easy,MH_01_easy,random_forest,0.012865411377795885,27,"{""max_depth"": 8, ""max_features"": ""sqrt"", ""min_samples_leaf"": 20}",10.1
+err_mag_m,leave_MH_01_easy,MH_01_easy,svr,0.012487566065512903,18,"{""regressor__svr__C"": 0.1, ""regressor__svr__epsilon"": 0.1, ""regressor__svr__gamma"": ""scale""}",0.3
+err_mag_m,leave_MH_02_easy,MH_02_easy,mean,0.012369670883905311,1,{},0.0
+err_mag_m,leave_MH_02_easy,MH_02_easy,ridge,0.012048944710964987,8,"{""ridge__alpha"": 1000.0}",0.1
+err_mag_m,leave_MH_02_easy,MH_02_easy,random_forest,0.012279873902752762,27,"{""max_depth"": 4, ""max_features"": ""sqrt"", ""min_samples_leaf"": 5}",11.7
+err_mag_m,leave_MH_02_easy,MH_02_easy,svr,0.012259380712602174,18,"{""regressor__svr__C"": 1.0, ""regressor__svr__epsilon"": 0.1, ""regressor__svr__gamma"": 0.001}",0.3
+err_mag_m,leave_MH_03_medium,MH_03_medium,mean,0.009376742272982543,1,{},0.0
+err_mag_m,leave_MH_03_medium,MH_03_medium,ridge,0.007196987434589604,8,"{""ridge__alpha"": 1000.0}",0.1
+err_mag_m,leave_MH_03_medium,MH_03_medium,random_forest,0.007011930038648791,27,"{""max_depth"": 8, ""max_features"": 0.3, ""min_samples_leaf"": 1}",14.1
+err_mag_m,leave_MH_03_medium,MH_03_medium,svr,0.007074689002392484,18,"{""regressor__svr__C"": 1.0, ""regressor__svr__epsilon"": 0.1, ""regressor__svr__gamma"": 0.001}",0.4

@@ -22,7 +22,7 @@ from sklearn.preprocessing import StandardScaler
 MEAN_PARAM_GRID: dict[str, list] = {}
 
 RIDGE_PARAM_GRID: dict[str, list] = {
-    "ridge__alpha": list(np.logspace(-2, 3, 6)),  # 0.01 ... 1000
+    "ridge__alpha": [float(a) for a in np.logspace(-2, 5, 8)],  # 0.01 ... 1e5
 }
 
 
