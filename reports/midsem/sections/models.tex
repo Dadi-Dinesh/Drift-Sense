@@ -3,7 +3,7 @@
 %
 % Describes the models in src/vio_drift/models/ml/ and the evaluation
 % protocol in tuning.py / splits.json. Hyperparameter grids are the
-% PARAM_GRID constants in baselines.py, minibatch_gd.py and random_forest.py; chosen
+% PARAM_GRID constants in baselines.py and random_forest.py; chosen
 % values are in results/metrics/err_mag_m_tuning.csv.
 
 \section{Models}
@@ -12,8 +12,8 @@
 Every model maps a window's feature vector $\mathbf{x} \in \mathbb{R}^{104}$
 (Section~\ref{sec:feature-engineering}) to a predicted drift $\hat{y}$, the
 1\,s position error \texttt{err\_mag\_m} in metres. We compare a mean baseline,
-four linear models (OLS, Ridge, Lasso, and a linear model trained by
-mini-batch gradient descent) and one non-linear model, a Random Forest. All
+three linear models (OLS, Ridge and Lasso) and one non-linear model, a Random
+Forest. All
 hyperparameters are chosen by grid search (Section~\ref{sec:protocol}).
 
 \subsection{Baseline and linear models}
@@ -58,33 +58,6 @@ so Lasso also selects features. With redundant features this is a natural fit:
 from a group of near-duplicates it tends to keep one. The useful range of
 $\alpha$ is small because the label's spread is only about $0.015$\,m; we tune
 $\alpha \in \{10^{-6}, 10^{-5}, \dots, 10^{-1}\}$ (6 values).
-
-\subsection{Mini-batch gradient descent}
-
-OLS, Ridge and Lasso are fitted by a solver. As a fourth linear model we fit
-the same $\hat{y} = \mathbf{w}^\top \mathbf{x} + b$ iteratively, with our own
-implementation of mini-batch gradient descent. Each epoch shuffles the training
-windows and splits them into batches $B$; for each batch the weights take one
-step against the gradient of the batch loss
-\begin{equation}
-  L_B(\mathbf{w}, b) = \frac{1}{2|B|} \sum_{i \in B}
-    \bigl(y_i - \mathbf{w}^\top \mathbf{x}_i - b\bigr)^2 + \alpha R(\mathbf{w}),
-  \qquad
-  \mathbf{w} \leftarrow \mathbf{w} - \eta\, \nabla_{\mathbf{w}} L_B ,
-\end{equation}
-where $R(\mathbf{w}) = \tfrac12\lVert \mathbf{w} \rVert^2$ (L2) or
-$\lVert \mathbf{w} \rVert_1$ (L1, using the subgradient
-$\operatorname{sign}(\mathbf{w})$), and $\eta$ is the learning rate. Batch size
-sits between stochastic gradient descent (one window per step) and full-batch
-gradient descent (all windows per step). Averaging the gradient over a batch
-smooths out single unusual windows while still taking many steps per epoch;
-notebook~05 shows that at the same learning rate, batch size 1 diverges on our
-data (some standardised features have extreme outliers) and the full batch
-barely moves in 50 epochs, while batches of 32 converge. Features are
-standardised first, and weights start at zero with $b$ at the training mean.
-We run 50 epochs and tune $\eta \in \{0.001, 0.01\}$, batch size
-$\in \{32, 128\}$, the penalty (L2 or L1) and
-$\alpha \in \{10^{-4}, \dots, 10^{-1}\}$: 32 combinations.
 
 \subsection{Random Forest}
 

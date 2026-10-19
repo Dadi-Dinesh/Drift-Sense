@@ -30,7 +30,6 @@ Mean baseline & 0.0094 & 0.0101 & 0.0145 & 0.0113 \\
 Linear (OLS)  & 0.0088 & 0.0081 & 0.0175 & 0.0115 \\
 Ridge (L2)    & 0.0077 & 0.0074 & 0.0151 & 0.0100 \\
 Lasso (L1)    & 0.0076 & 0.0075 & 0.0147 & 0.0099 \\
-Mini-batch GD & 0.0075 & 0.0075 & 0.0151 & 0.0100 \\
 Random Forest & 0.0077 & 0.0078 & 0.0151 & 0.0102 \\
 \hline
 \end{tabular}
@@ -49,7 +48,6 @@ Mean baseline & $-0.037$ & $-0.016$ & $-0.047$ & $-0.033$ \\
 Linear (OLS)  & 0.103 & 0.344 & $-0.701$ & $-0.084$ \\
 Ridge (L2)    & 0.312 & 0.483 & $-0.057$ & 0.246 \\
 Lasso (L1)    & 0.335 & 0.463 & $-0.025$ & 0.258 \\
-Mini-batch GD & 0.344 & 0.463 & $-0.058$ & 0.250 \\
 Random Forest & 0.312 & 0.405 & $-0.049$ & 0.223 \\
 \hline
 \end{tabular}
@@ -57,27 +55,27 @@ Random Forest & 0.312 & 0.405 & $-0.049$ & 0.223 \\
 
 Tables~\ref{tab:mae} and~\ref{tab:r2} give the headline result. On the two
 \emph{easy} sequences every model beats the mean baseline. For the regularised
-linear models (Ridge, Lasso, mini-batch GD) and Random Forest, MAE falls by
+linear models (Ridge, Lasso) and Random Forest, MAE falls by
 18--27\% (e.g.\ Ridge on MH\_02: $0.0101 \to 0.0074$\,m), and the models
 explain 31--48\% of the test sequence's label variance; unregularised OLS gains
 less (Section~\ref{sec:overfitting}). On \emph{MH\_03\_medium} no model beats
 the baseline: the tuned models reach MAE $0.0147$--$0.0151$\,m against the
 baseline's $0.0145$\,m, with $R^2$ slightly negative, and OLS is clearly worse
-($0.0175$\,m, $R^2 = -0.70$). Averaged over folds, Lasso ($0.0099$\,m), Ridge and
-mini-batch GD ($0.0100$\,m) and Random Forest ($0.0102$\,m) are within
+($0.0175$\,m, $R^2 = -0.70$). Averaged over folds, Lasso ($0.0099$\,m), Ridge
+($0.0100$\,m) and Random Forest ($0.0102$\,m) are within
 $0.0003$\,m of each other. With only three test flights that difference is
-within noise, so we treat these four models as tied rather than naming a single
+within noise, so we treat these three models as tied rather than naming a single
 best one; the inner-CV scores, which never see the test flight, tell the same
 story. A regularised linear model does as well as the non-linear forest on
 this data.
 % Source: results/metrics/err_mag_m.csv (column rmse, "mean" rows)
 RMSE tells the same story (fold means: baseline $0.0154$, OLS $0.0162$, Ridge
-$0.0134$, Lasso $0.0133$, mini-batch GD $0.0134$, Random Forest $0.0136$\,m).
+$0.0134$, Lasso $0.0133$, Random Forest $0.0136$\,m).
 
 % Source: results/metrics/err_mag_m_tuning.csv
 Tuning chose strong shrinkage for Ridge ($\alpha = 1000$ in every fold, inside
 a grid that runs to $10^5$) and $\alpha = 10^{-3}$ for Lasso in every fold,
-also inside its grid. For mini-batch GD it chose the L1 penalty in every fold.
+also inside its grid.
 For Random Forest it chose shallow or large-leaf trees in two of the three
 folds. All these choices point to the same thing: the signal is weak and
 over-fitting is the main risk.
@@ -152,8 +150,7 @@ training windows, and compare it with the tuned model
 \centering
 \caption{Training vs.\ held-out MAE (m) for \texttt{err\_mag\_m}, averaged over
 folds, for the tuned model and its most flexible grid setting. Ratio is
-held-out MAE over training MAE (mean over folds). Loose mini-batch GD: L2,
-$\alpha = 10^{-4}$, $\eta = 0.01$, batch size 32.}
+held-out MAE over training MAE (mean over folds).}
 \label{tab:overfit}
 \begin{tabular}{llrrr}
 \hline
@@ -163,8 +160,6 @@ Ridge (L2)    & tuned ($\alpha = 1000$)              & 0.0086 & 0.0100 & 1.3 \\
               & loose ($\alpha = 0.01$)              & 0.0083 & 0.0114 & 1.5 \\
 Lasso (L1)    & tuned ($\alpha = 10^{-3}$)           & 0.0089 & 0.0099 & 1.2 \\
               & loose ($\alpha = 10^{-6}$)           & 0.0083 & 0.0114 & 1.5 \\
-Mini-batch GD & tuned                                & 0.0087 & 0.0100 & 1.3 \\
-              & loose (see caption)                  & 0.0084 & 0.0107 & 1.4 \\
 Random Forest & tuned                                & 0.0076 & 0.0102 & 1.7 \\
               & loose (unlimited depth, leaf 1)      & 0.0028 & 0.0102 & 4.0 \\
 \hline
@@ -172,8 +167,7 @@ Random Forest & tuned                                & 0.0076 & 0.0102 & 1.7 \\
 \end{table}
 With almost no penalty, Ridge and Lasso both behave like OLS: training error
 drops slightly and held-out error rises to $0.0114$\,m (from $0.0100$ and
-$0.0099$\,m tuned). Mini-batch GD with its weakest penalty and largest step
-does the same on a smaller scale ($0.0107$ against $0.0100$\,m). (The loosest
+$0.0099$\,m tuned). (The loosest
 Lasso, $\alpha = 10^{-6}$, reaches the solver's iteration limit before fully
 converging; it is only used here, where it behaves like OLS as expected.) The
 loose Random Forest memorises much harder (training MAE $0.0028$\,m) but its
@@ -187,7 +181,7 @@ smallest gap.
 On the two easy folds every tuned model's held-out MAE is \emph{below} its
 training MAE (ratios $0.76$--$0.87$), because those training sets include the
 harder MH\_03 flight. When MH\_03 is held out, the ratio jumps to $2.1$--$3.3$
-for Ridge, Lasso, mini-batch GD and Random Forest. But the mean baseline, which has no
+for Ridge, Lasso and Random Forest. But the mean baseline, which has no
 parameters to over-fit, also jumps to $1.55$ ($0.0093 \to 0.0145$\,m). A gap
 that appears even for a constant predictor comes from the test flight being
 different, not from the model memorising; regularisation cannot close it.
