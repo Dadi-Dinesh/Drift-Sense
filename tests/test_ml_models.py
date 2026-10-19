@@ -45,7 +45,7 @@ def test_svr_scales_features_and_target():
     assert model.transformer is not None
 
 
-@pytest.mark.parametrize("name", ["ridge", "random_forest", "svr"])
+@pytest.mark.parametrize("name", ["linear", "ridge", "random_forest", "svr"])
 def test_models_beat_mean_on_learnable_toy_data(name):
     X, y, _ = _toy()
     spec = next(s for s in model_specs() if s.name == name)

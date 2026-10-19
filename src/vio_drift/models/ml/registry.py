@@ -25,6 +25,7 @@ def model_specs(seed: int = 42) -> list[ModelSpec]:
     """All Part D models; ``seed`` fixes the Random Forest's randomness."""
     return [
         ModelSpec("mean", baselines.build_mean_baseline, baselines.MEAN_PARAM_GRID),
+        ModelSpec("linear", baselines.build_linear, baselines.LINEAR_PARAM_GRID),
         ModelSpec("ridge", baselines.build_ridge, baselines.RIDGE_PARAM_GRID),
         ModelSpec(
             "random_forest",

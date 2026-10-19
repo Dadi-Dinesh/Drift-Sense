@@ -23,6 +23,7 @@ BASELINE_GREY = "#8a8985"
 
 MODEL_LABELS = {
     "mean": "Mean baseline",
+    "linear": "Linear (OLS)",
     "ridge": "Ridge",
     "random_forest": "Random Forest",
     "svr": "SVR (RBF)",
