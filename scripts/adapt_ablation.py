@@ -7,7 +7,9 @@ its first 60% of windows, minus a 2 s gap, may join training; its last 40% is
 the test set. Every model is scored twice on the *same* test windows:
 
   * unseen   — trained on the other two flights only (as in train_ml.py);
-  * adapted  — trained on the other two flights + the start of this flight.
+  * adapted  — trained on the other two flights + the start of this flight;
+  * mix60_40 — the adapted training set with easy windows randomly dropped
+               until it is 60% easy / 40% medium by window count.
 
 The difference is what seeing part of the flight is worth. Hyperparameters are
 tuned with sequence-grouped CV on the training rows only; the flight's start
@@ -45,6 +47,17 @@ from vio_drift.models.ml.tuning import tune
 
 TRAIN_FRAC = 0.6   # first 60% of the held-out flight may be trained on
 GAP_WINDOWS = 8    # 2 s at 0.25 s stride: no train window overlaps a test window
+EASY_SHARE = 0.6   # mix60_40: fraction of training windows from easy flights
+
+
+def rebalance(train: pd.DataFrame, easy_share: float, seed: int) -> pd.DataFrame:
+    """Randomly drop easy windows so they make up ``easy_share`` of ``train``."""
+    is_medium = train["seq_id"].str.contains("medium")
+    medium, easy = train[is_medium], train[~is_medium]
+    n_easy = round(len(medium) * easy_share / (1 - easy_share))
+    if n_easy > len(easy):
+        raise ValueError(f"only {len(easy)} easy windows, {n_easy} needed")
+    return pd.concat([easy.sample(n_easy, random_state=seed), medium])
 
 
 def main() -> None:
@@ -69,7 +82,9 @@ def main() -> None:
         others = df[df["seq_id"] != seq]
         start, test = chronological_split(df[df["seq_id"] == seq], TRAIN_FRAC, GAP_WINDOWS)
         start = start.assign(seq_id=f"{seq}_start")   # own group in the inner CV
-        settings = {"unseen": others, "adapted": pd.concat([others, start])}
+        adapted = pd.concat([others, start])
+        settings = {"unseen": others, "adapted": adapted,
+                    "mix60_40": rebalance(adapted, EASY_SHARE, seed)}
         for setting, train in settings.items():
             for spec in model_specs(seed):
                 res = tune(spec.build(), spec.param_grid, train[feats],
@@ -93,7 +108,7 @@ def main() -> None:
     out = out_dir / f"{target}_adapt.csv"
     table.to_csv(out, index=False)
 
-    print("\nR^2 on the last 40% of each flight (unseen vs adapted):")
+    print("\nR^2 on the last 40% of each flight (unseen / adapted / mix60_40):")
     print(table.pivot_table(index=["model"], columns=["test_seq", "setting"], values="r2",
                             sort=False).round(3).to_string())
     print(f"\n[save] {out}")
