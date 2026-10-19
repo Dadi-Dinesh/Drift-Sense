@@ -11,7 +11,7 @@
 
 Every model maps a window's feature vector $\mathbf{x} \in \mathbb{R}^{104}$
 (Section~\ref{sec:feature-engineering}) to a predicted drift $\hat{y}$, the
-1\,s position error \texttt{err\_mag\_m} in metres. We compare two reference
+1\,s position error \texttt{err\_mag\_m} in metres. We compare three reference
 models against two non-linear regressors.
 
 \subsection{Reference models}
@@ -21,8 +21,16 @@ Predict the average training label for every window,
 $\hat{y} = \bar{y}_{\text{train}}$. It ignores the features entirely, so any
 model that cannot beat it has learned nothing that transfers to a new flight.
 
+\paragraph{Linear regression (OLS).}
+Ordinary least squares: the linear model $\hat{y} = \mathbf{w}^\top \mathbf{x} + b$
+that minimises the squared training error
+$\sum_{i} (y_i - \mathbf{w}^\top \mathbf{x}_i - b)^2$, with nothing to tune.
+It is the unregularised reference for Ridge: comparing the two measures what
+Ridge's penalty buys rather than assuming it
+(Section~\ref{sec:overfitting}).
+
 \paragraph{Ridge regression.}
-A linear model $\hat{y} = \mathbf{w}^\top \mathbf{x} + b$ fitted by minimising
+The same linear model, fitted by minimising
 \begin{equation}
   \sum_{i} \bigl(y_i - \mathbf{w}^\top \mathbf{x}_i - b\bigr)^2
   + \alpha \lVert \mathbf{w} \rVert^2 .
@@ -31,7 +39,8 @@ The penalty $\alpha \lVert \mathbf{w} \rVert^2$ shrinks the weights. It is
 needed here because many features are near-duplicates (e.g.\ variance is the
 square of standard deviation; 17 feature pairs have $|r| > 0.95$): without it,
 a least-squares fit would give such pairs large weights of opposite sign that
-cancel on the training data and blow up on new data. Features are standardised
+cancel on the training data and blow up on new data (as OLS does,
+Section~\ref{sec:overfitting}). Features are standardised
 (zero mean, unit variance) first, so the penalty treats every feature equally.
 
 \subsection{Random Forest}

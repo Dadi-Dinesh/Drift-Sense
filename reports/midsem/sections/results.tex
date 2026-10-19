@@ -2,7 +2,8 @@
 % Include from reports/midsem/main.tex (needs \usepackage{graphicx}).
 %
 % Every number below is copied from a CSV in results/metrics/, written by
-% `python scripts/train_ml.py` then `python scripts/evaluate.py`. The source
+% `python scripts/train_ml.py`, `python scripts/evaluate.py`, then
+% `python scripts/overfit_check.py` (the *_overfit.csv files). The source
 % file is named in a comment above each table or paragraph. Percentages are
 % computed from the MAE values in the cited table. If the models or data
 % change, re-run both scripts and update these numbers. Figure paths are
@@ -26,6 +27,7 @@ All scores are on the held-out sequence of each leave-one-sequence-out fold
 Model & MH\_01\_easy & MH\_02\_easy & MH\_03\_medium & Mean \\
 \hline
 Mean baseline & 0.0094 & 0.0101 & 0.0145 & 0.0113 \\
+Linear (OLS)  & 0.0088 & 0.0081 & 0.0175 & 0.0115 \\
 Ridge         & 0.0077 & 0.0074 & 0.0151 & \textbf{0.0100} \\
 Random Forest & 0.0077 & 0.0078 & 0.0151 & 0.0102 \\
 SVR (RBF)     & 0.0081 & 0.0074 & 0.0151 & 0.0102 \\
@@ -43,6 +45,7 @@ SVR (RBF)     & 0.0081 & 0.0074 & 0.0151 & 0.0102 \\
 Model & MH\_01\_easy & MH\_02\_easy & MH\_03\_medium & Mean \\
 \hline
 Mean baseline & $-0.037$ & $-0.016$ & $-0.047$ & $-0.033$ \\
+Linear (OLS)  & 0.103 & 0.344 & $-0.701$ & $-0.084$ \\
 Ridge         & 0.312 & 0.483 & $-0.057$ & 0.246 \\
 Random Forest & 0.312 & 0.405 & $-0.049$ & 0.223 \\
 SVR (RBF)     & 0.249 & 0.466 & $-0.059$ & 0.219 \\
@@ -51,15 +54,17 @@ SVR (RBF)     & 0.249 & 0.466 & $-0.059$ & 0.219 \\
 \end{table}
 
 Tables~\ref{tab:mae} and~\ref{tab:r2} give the headline result. On the two
-\emph{easy} sequences every model clearly beats the mean baseline. MAE falls by
-15--27\% (e.g.\ Ridge on MH\_02: $0.0101 \to 0.0074$\,m), and the models explain
-25--48\% of the test sequence's label variance. On \emph{MH\_03\_medium} no
-model beats the baseline: all three reach MAE $0.0151$\,m against the
-baseline's $0.0145$\,m, and $R^2$ is slightly negative. Averaged over folds,
+\emph{easy} sequences every model beats the mean baseline. For Ridge, Random
+Forest and SVR, MAE falls by 15--27\% (e.g.\ Ridge on MH\_02:
+$0.0101 \to 0.0074$\,m), and the models explain 25--48\% of the test
+sequence's label variance; unregularised OLS gains less (Section~\ref{sec:overfitting}).
+On \emph{MH\_03\_medium} no model beats the baseline: Ridge, Random Forest and
+SVR all reach MAE $0.0151$\,m against the baseline's $0.0145$\,m, with $R^2$
+slightly negative, and OLS is clearly worse ($0.0175$\,m, $R^2 = -0.70$). Averaged over folds,
 Ridge is best ($0.0100$\,m), with Random Forest and SVR $0.0002$\,m behind. A
 regularised linear model does as well as the non-linear ones on this data.
 % Source: results/metrics/err_mag_m.csv (column rmse, "mean" rows)
-RMSE tells the same story (fold means: baseline $0.0154$, Ridge $0.0134$,
+RMSE tells the same story (fold means: baseline $0.0154$, OLS $0.0162$, Ridge $0.0134$,
 Random Forest $0.0136$, SVR $0.0137$\,m).
 
 % Source: results/metrics/err_mag_m_tuning.csv
@@ -85,7 +90,77 @@ extremes.}
 \label{fig:error-over-time}
 \end{figure}
 
+\subsection{Over-fitting}
+\label{sec:overfitting}
+
+A model over-fits when it learns the noise of its training flights instead of
+a relationship that carries over to a new one. The symptom is a small error on
+the training windows and a much larger one on the held-out sequence. We
+therefore also score every model on the windows it was fitted on
+(\texttt{train\_mae}) and compare.
+
+\paragraph{Without a penalty, the linear model over-fits.}
+% Source: results/metrics/err_mag_m.csv (columns mae, train_mae; "mean" rows)
+OLS fits its training flights slightly \emph{better} than Ridge (fold-mean
+training MAE $0.0083$ against $0.0086$\,m), but does worse on every held-out
+flight (Table~\ref{tab:mae}). Averaged over folds it scores $0.0115$\,m, worse
+even than the mean baseline ($0.0113$\,m), while Ridge scores $0.0100$\,m. The
+damage is largest on MH\_03\_medium, where OLS reaches $R^2 = -0.70$.
+% Source: results/metrics/err_mag_m_tuning.csv (column inner_cv_mae)
+The inner cross-validation saw the same thing before any test data was
+touched: OLS's inner-CV MAE is $0.045$, $0.028$ and $0.008$\,m in the three
+folds, against $0.012$, $0.012$ and $0.007$\,m for Ridge. This is the failure
+the L2 penalty is there to prevent (Section~\ref{sec:models}): with many
+near-duplicate features, least squares assigns large weights of opposite sign
+that cancel on the training flights and not on a new one.
+
+\paragraph{Every flexible model can memorise; tuning stops it.}
+% Source: results/metrics/err_mag_m_overfit.csv ("mean" rows; ratio is the
+% mean over folds of test_mae / train_mae), written by scripts/overfit_check.py
+To see what the tuning protects against, we refit each model with the most
+flexible setting in its own grid, the setting best able to memorise the
+training windows, and compare it with the tuned model
+(Table~\ref{tab:overfit}).
+\begin{table}[t]
+\centering
+\caption{Training vs.\ held-out MAE (m) for \texttt{err\_mag\_m}, averaged over
+folds, for the tuned model and its most flexible grid setting. Ratio is
+held-out MAE over training MAE (mean over folds).}
+\label{tab:overfit}
+\begin{tabular}{llrrr}
+\hline
+Model & Setting & Train MAE & Held-out MAE & Ratio \\
+\hline
+Ridge         & tuned ($\alpha = 1000$)              & 0.0086 & \textbf{0.0100} & 1.3 \\
+              & loose ($\alpha = 0.01$)              & 0.0083 & 0.0114 & 1.5 \\
+Random Forest & tuned                                & 0.0076 & 0.0102 & 1.7 \\
+              & loose (unlimited depth, leaf 1)      & 0.0028 & 0.0102 & 4.0 \\
+SVR (RBF)     & tuned                                & 0.0082 & 0.0102 & 1.4 \\
+              & loose ($C = 10$, $\gamma = 0.01$)    & 0.0026 & 0.0111 & 4.7 \\
+\hline
+\end{tabular}
+\end{table}
+Loose Ridge behaves like OLS. The loose SVR fits its training windows three
+times more closely than the tuned one ($0.0026$ against $0.0082$\,m) and pays
+for it on new data ($0.0111$ against $0.0102$\,m). The loose Random Forest
+memorises just as hard (training MAE $0.0028$\,m) but its held-out MAE does not
+move: averaging 300 decorrelated trees cancels much of what the individual
+deep trees memorise. In all three cases inner cross-validation rejected the
+loose setting, so the reported models are the ones with the smallest gap.
+
+\paragraph{The remaining gap on MH\_03 is distribution shift, not over-fitting.}
+% Source: results/metrics/err_mag_m.csv (mae / train_mae, fold leave_MH_03_medium)
+On the two easy folds every tuned model's held-out MAE is \emph{below} its
+training MAE (ratios $0.77$--$0.87$), because those training sets include the
+harder MH\_03 flight. When MH\_03 is held out, the ratio jumps to $2.3$--$3.3$
+for Ridge, Random Forest and SVR. But the mean baseline, which has no
+parameters to over-fit, also jumps to $1.55$ ($0.0093 \to 0.0145$\,m). A gap
+that appears even for a constant predictor comes from the test flight being
+different, not from the model memorising; regularisation cannot close it.
+Section~\ref{sec:failure} examines this shift.
+
 \subsection{Failure analysis}
+\label{sec:failure}
 
 \paragraph{Gains on easy flights come mostly from the opening segment.}
 % Source: results/metrics/err_mag_m_failure_segments.csv
@@ -155,5 +230,9 @@ The classic models learn a real but modest relationship between IMU window
 statistics and drift. That relationship transfers between the two easy
 flights, but not to the faster MH\_03\_medium flight. The obstacles are
 distribution shift and unpredictable drift spikes, not the choice of model.
+Over-fitting is real but under control: unregularised OLS and the loosest
+grid settings memorise the training flights and lose on new ones, and the
+sequence-grouped tuning picks settings whose remaining train/test gap is
+explained by the shift to MH\_03, not by memorisation.
 More varied training flights (MH\_04, MH\_05) and models that see the raw
 $200 \times 6$ signal are the natural next steps for Phase~2.
