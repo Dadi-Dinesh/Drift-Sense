@@ -20,3 +20,14 @@ Thumbs.db
 
 .vscode/
 .idea/
+
+# LaTeX build files (reports/*/main.pdf is kept)
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.synctex.gz
+*.xdv

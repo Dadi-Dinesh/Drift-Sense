@@ -1,0 +1,43 @@
+% Drift-Sense mid-semester report.
+%
+% Build (from this directory):
+%   tectonic main.tex                      # self-contained, fetches packages
+%   or: latexmk -xelatex main.tex          # with a TeX Live / MacTeX install
+%
+% Figures are read from ../../figures/, so build from reports/midsem/.
+% Section files live in sections/; each names the scripts and CSVs its
+% numbers come from.
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{microtype}
+\usepackage[section]{placeins}  % keep each figure/table inside its own section
+\usepackage[hidelinks]{hyperref}
+
+% File paths and sequence names (\texttt{...}, MH\_01\_easy) cannot be
+% hyphenated; let TeX stretch those lines instead of overrunning the margin.
+\setlength{\emergencystretch}{3em}
+
+\title{Drift-Sense: Predicting IMU Dead-Reckoning Drift\\from Window-Level Motion Features}
+\author{Yatin \and Harsith Priyan Sivanandham \and Pranavi Mathur \and GuruManoharGuptaBaratam}
+\date{Mid-semester report}
+
+\begin{document}
+\maketitle
+
+\input{sections/dataset_eda}
+
+\section{Method}
+\label{sec:method}
+\input{sections/method_label_construction}
+\input{sections/method_feature_engineering}
+
+\input{sections/models}
+\input{sections/results}
+
+\bibliographystyle{plain}
+\bibliography{references}
+
+\end{document}

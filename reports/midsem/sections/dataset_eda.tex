@@ -10,7 +10,7 @@ We use three Machine Hall sequences from the EuRoC MAV dataset
 Each flight is a few minutes of a real hexacopter with a stereo camera and
 an ADIS16448 IMU. Phase~1 uses only \texttt{imu0/data.csv} (gyroscope in
 rad/s, accelerometer specific force in m/s$^2$, nominally 200\,Hz) and
-\texttt{state\_groundtruth\_estimate0/data.csv} (position, Hamilton
+\texttt{state\_groundtruth\_estimate0/\allowbreak data.csv} (position, Hamilton
 quaternion, velocity, and IMU biases). Camera images are reserved for
 Phase~2.
 
@@ -23,7 +23,7 @@ IMU rows (MH\_01--MH\_03), almost entirely at sequence edges where
 ground-truth coverage starts later than the IMU. We treat those drops as
 coverage gaps, not sensor faults.
 
-\begin{table}[t]
+\begin{table}[htbp]
 \centering
 \caption{Sequence-level quality checks.}
 \label{tab:quality}
