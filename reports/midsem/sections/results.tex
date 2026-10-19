@@ -28,9 +28,10 @@ Model & MH\_01\_easy & MH\_02\_easy & MH\_03\_medium & Mean \\
 \hline
 Mean baseline & 0.0094 & 0.0101 & 0.0145 & 0.0113 \\
 Linear (OLS)  & 0.0088 & 0.0081 & 0.0175 & 0.0115 \\
-Ridge         & 0.0077 & 0.0074 & 0.0151 & \textbf{0.0100} \\
+Ridge (L2)    & 0.0077 & 0.0074 & 0.0151 & 0.0100 \\
+Lasso (L1)    & 0.0076 & 0.0075 & 0.0147 & 0.0099 \\
+Mini-batch GD & 0.0075 & 0.0075 & 0.0151 & 0.0100 \\
 Random Forest & 0.0077 & 0.0078 & 0.0151 & 0.0102 \\
-SVR (RBF)     & 0.0081 & 0.0074 & 0.0151 & 0.0102 \\
 \hline
 \end{tabular}
 \end{table}
@@ -46,32 +47,39 @@ Model & MH\_01\_easy & MH\_02\_easy & MH\_03\_medium & Mean \\
 \hline
 Mean baseline & $-0.037$ & $-0.016$ & $-0.047$ & $-0.033$ \\
 Linear (OLS)  & 0.103 & 0.344 & $-0.701$ & $-0.084$ \\
-Ridge         & 0.312 & 0.483 & $-0.057$ & 0.246 \\
+Ridge (L2)    & 0.312 & 0.483 & $-0.057$ & 0.246 \\
+Lasso (L1)    & 0.335 & 0.463 & $-0.025$ & 0.258 \\
+Mini-batch GD & 0.344 & 0.463 & $-0.058$ & 0.250 \\
 Random Forest & 0.312 & 0.405 & $-0.049$ & 0.223 \\
-SVR (RBF)     & 0.249 & 0.466 & $-0.059$ & 0.219 \\
 \hline
 \end{tabular}
 \end{table}
 
 Tables~\ref{tab:mae} and~\ref{tab:r2} give the headline result. On the two
-\emph{easy} sequences every model beats the mean baseline. For Ridge, Random
-Forest and SVR, MAE falls by 15--27\% (e.g.\ Ridge on MH\_02:
-$0.0101 \to 0.0074$\,m), and the models explain 25--48\% of the test
-sequence's label variance; unregularised OLS gains less (Section~\ref{sec:overfitting}).
-On \emph{MH\_03\_medium} no model beats the baseline: Ridge, Random Forest and
-SVR all reach MAE $0.0151$\,m against the baseline's $0.0145$\,m, with $R^2$
-slightly negative, and OLS is clearly worse ($0.0175$\,m, $R^2 = -0.70$). Averaged over folds,
-Ridge is best ($0.0100$\,m), with Random Forest and SVR $0.0002$\,m behind. A
-regularised linear model does as well as the non-linear ones on this data.
+\emph{easy} sequences every model beats the mean baseline. For the regularised
+linear models (Ridge, Lasso, mini-batch GD) and Random Forest, MAE falls by
+18--27\% (e.g.\ Ridge on MH\_02: $0.0101 \to 0.0074$\,m), and the models
+explain 31--48\% of the test sequence's label variance; unregularised OLS gains
+less (Section~\ref{sec:overfitting}). On \emph{MH\_03\_medium} no model beats
+the baseline: the tuned models reach MAE $0.0147$--$0.0151$\,m against the
+baseline's $0.0145$\,m, with $R^2$ slightly negative, and OLS is clearly worse
+($0.0175$\,m, $R^2 = -0.70$). Averaged over folds, Lasso ($0.0099$\,m), Ridge and
+mini-batch GD ($0.0100$\,m) and Random Forest ($0.0102$\,m) are within
+$0.0003$\,m of each other. With only three test flights that difference is
+within noise, so we treat these four models as tied rather than naming a single
+best one; the inner-CV scores, which never see the test flight, tell the same
+story. A regularised linear model does as well as the non-linear forest on
+this data.
 % Source: results/metrics/err_mag_m.csv (column rmse, "mean" rows)
-RMSE tells the same story (fold means: baseline $0.0154$, OLS $0.0162$, Ridge $0.0134$,
-Random Forest $0.0136$, SVR $0.0137$\,m).
+RMSE tells the same story (fold means: baseline $0.0154$, OLS $0.0162$, Ridge
+$0.0134$, Lasso $0.0133$, mini-batch GD $0.0134$, Random Forest $0.0136$\,m).
 
 % Source: results/metrics/err_mag_m_tuning.csv
 Tuning chose strong shrinkage for Ridge ($\alpha = 1000$ in every fold, inside
-a grid that runs to $10^5$). It chose small $C$ (0.1--1) for SVR, i.e.\ smooth
-fits. For Random Forest it chose shallow or large-leaf trees in two of the
-three folds. All three choices point to the same thing: the signal is weak and
+a grid that runs to $10^5$) and $\alpha = 10^{-3}$ for Lasso in every fold,
+also inside its grid. For mini-batch GD it chose the L1 penalty in every fold.
+For Random Forest it chose shallow or large-leaf trees in two of the three
+folds. All these choices point to the same thing: the signal is weak and
 over-fitting is the main risk.
 
 \begin{figure}[htbp]
@@ -127,7 +135,11 @@ touched: OLS's inner-CV MAE is $0.045$, $0.028$ and $0.008$\,m in the three
 folds, against $0.012$, $0.012$ and $0.007$\,m for Ridge. This is the failure
 the L2 penalty is there to prevent (Section~\ref{sec:models}): with many
 near-duplicate features, least squares assigns large weights of opposite sign
-that cancel on the training flights and not on a new one.
+that cancel on the training flights and not on a new one. Lasso's L1 penalty
+goes further and sets all but 8--11 of the 104 weights to exactly zero in each
+fold (notebook~05); the features it keeps (\texttt{ax\_mean}/\texttt{ax\_rms},
+\texttt{acc\_mag\_mean}, \texttt{az\_spec\_entropy}, \texttt{gy\_mean}) overlap
+with those that permutation importance ranks highest below.
 
 \paragraph{Every flexible model can memorise; tuning stops it.}
 % Source: results/metrics/err_mag_m_overfit.csv ("mean" rows; ratio is the
@@ -140,35 +152,42 @@ training windows, and compare it with the tuned model
 \centering
 \caption{Training vs.\ held-out MAE (m) for \texttt{err\_mag\_m}, averaged over
 folds, for the tuned model and its most flexible grid setting. Ratio is
-held-out MAE over training MAE (mean over folds).}
+held-out MAE over training MAE (mean over folds). Loose mini-batch GD: L2,
+$\alpha = 10^{-4}$, $\eta = 0.01$, batch size 32.}
 \label{tab:overfit}
 \begin{tabular}{llrrr}
 \hline
 Model & Setting & Train MAE & Held-out MAE & Ratio \\
 \hline
-Ridge         & tuned ($\alpha = 1000$)              & 0.0086 & \textbf{0.0100} & 1.3 \\
+Ridge (L2)    & tuned ($\alpha = 1000$)              & 0.0086 & 0.0100 & 1.3 \\
               & loose ($\alpha = 0.01$)              & 0.0083 & 0.0114 & 1.5 \\
+Lasso (L1)    & tuned ($\alpha = 10^{-3}$)           & 0.0089 & 0.0099 & 1.2 \\
+              & loose ($\alpha = 10^{-6}$)           & 0.0083 & 0.0114 & 1.5 \\
+Mini-batch GD & tuned                                & 0.0087 & 0.0100 & 1.3 \\
+              & loose (see caption)                  & 0.0084 & 0.0107 & 1.4 \\
 Random Forest & tuned                                & 0.0076 & 0.0102 & 1.7 \\
               & loose (unlimited depth, leaf 1)      & 0.0028 & 0.0102 & 4.0 \\
-SVR (RBF)     & tuned                                & 0.0082 & 0.0102 & 1.4 \\
-              & loose ($C = 10$, $\gamma = 0.01$)    & 0.0026 & 0.0111 & 4.7 \\
 \hline
 \end{tabular}
 \end{table}
-Loose Ridge behaves like OLS. The loose SVR fits its training windows three
-times more closely than the tuned one ($0.0026$ against $0.0082$\,m) and pays
-for it on new data ($0.0111$ against $0.0102$\,m). The loose Random Forest
-memorises just as hard (training MAE $0.0028$\,m) but its held-out MAE does not
-move: averaging 300 decorrelated trees cancels much of what the individual
-deep trees memorise. In all three cases inner cross-validation rejected the
-loose setting, so the reported models are the ones with the smallest gap.
+With almost no penalty, Ridge and Lasso both behave like OLS: training error
+drops slightly and held-out error rises to $0.0114$\,m (from $0.0100$ and
+$0.0099$\,m tuned). Mini-batch GD with its weakest penalty and largest step
+does the same on a smaller scale ($0.0107$ against $0.0100$\,m). (The loosest
+Lasso, $\alpha = 10^{-6}$, reaches the solver's iteration limit before fully
+converging; it is only used here, where it behaves like OLS as expected.) The
+loose Random Forest memorises much harder (training MAE $0.0028$\,m) but its
+held-out MAE does not move: averaging 300 decorrelated trees cancels much of
+what the individual deep trees memorise. In every case inner cross-validation
+rejected the loose setting, so the reported models are the ones with the
+smallest gap.
 
 \paragraph{The remaining gap on MH\_03 is distribution shift, not over-fitting.}
 % Source: results/metrics/err_mag_m.csv (mae / train_mae, fold leave_MH_03_medium)
 On the two easy folds every tuned model's held-out MAE is \emph{below} its
-training MAE (ratios $0.77$--$0.87$), because those training sets include the
-harder MH\_03 flight. When MH\_03 is held out, the ratio jumps to $2.3$--$3.3$
-for Ridge, Random Forest and SVR. But the mean baseline, which has no
+training MAE (ratios $0.76$--$0.87$), because those training sets include the
+harder MH\_03 flight. When MH\_03 is held out, the ratio jumps to $2.1$--$3.3$
+for Ridge, Lasso, mini-batch GD and Random Forest. But the mean baseline, which has no
 parameters to over-fit, also jumps to $1.55$ ($0.0093 \to 0.0145$\,m). A gap
 that appears even for a constant predictor comes from the test flight being
 different, not from the model memorising; regularisation cannot close it.
@@ -223,9 +242,9 @@ when one feature is shuffled, mean $\pm$ s.d.\ over the three folds.}
 % mean of the `importance` column over the 3 folds, x1000 to give mm.
 Shuffling one feature on held-out data hurts most for the accelerometer level
 features. For Random Forest these are \texttt{ax\_mean} ($+0.244$\,mm MAE) and
-\texttt{ax\_rms} ($+0.159$\,mm); for SVR they are \texttt{acc\_mag\_mean}
-($+0.309$\,mm), \texttt{ax\_mean} ($+0.291$\,mm) and \texttt{ax\_rms}
-($+0.278$\,mm) (Figure~\ref{fig:importance}). This matches the feature
+\texttt{ax\_rms} ($+0.159$\,mm); for Ridge they are \texttt{ax\_mean}
+($+0.321$\,mm), \texttt{acc\_mag\_mean} ($+0.319$\,mm) and \texttt{ax\_rms}
+($+0.293$\,mm) (Figure~\ref{fig:importance}). This matches the feature
 analysis of Section~\ref{sec:feature-engineering}. It also fits the label being
 driven mainly by how gravity and accelerometer bias project into the
 integration, not by vigorous motion as such.
@@ -235,8 +254,8 @@ integration, not by vigorous motion as such.
 % Source: results/metrics/err_mag_m_bc.csv
 Running the same pipeline on \texttt{err\_mag\_m\_bc}, the drift left after
 subtracting the dataset's own bias estimates, the best fold-mean MAE is $0.0109$\,m
-(Random Forest) against a baseline of $0.0122$\,m. $R^2$ never exceeds $0.051$
-on any fold and is negative when averaged over folds for every model. Once
+(Random Forest) against a baseline of $0.0122$\,m. $R^2$ never exceeds $0.069$
+(Lasso on MH\_01) on any fold and is negative when averaged over folds for every model. Once
 bias is removed, the remaining drift is barely predictable from these motion
 features.
 
