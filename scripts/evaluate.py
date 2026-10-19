@@ -15,9 +15,9 @@ Writes, per target (the "experiment"):
                                              train/test shift, error by rotation
                                              quartile, error concentration
   results/predictions/<target>.csv           one row per (fold, window, model)
-  figures/ml/<target>_pred_vs_actual.png
-  figures/ml/<target>_error_over_time.png
-  figures/ml/<target>_residuals.png
+  figures/ml/<target>_pred_vs_actual_<model>.png    one figure per model
+  figures/ml/<target>_error_over_time_<seq>.png     one figure per held-out sequence
+  figures/ml/<target>_residuals_<model>.png         one figure per model
   figures/ml/<target>_importance_rf.png
   figures/ml/<target>_importance_permutation.png
 
@@ -111,11 +111,12 @@ def importance_table(df, folds, target, fitted, seed) -> pd.DataFrame:
 
 
 def save_figures(predictions, importance, target, fig_dir) -> None:
-    figs = {
-        "pred_vs_actual": plots.plot_pred_vs_actual(predictions, target),
-        "error_over_time": plots.plot_error_over_time(predictions, target),
-        "residuals": plots.plot_residuals(predictions, target),
-    }
+    figs = {}
+    for model in predictions["model"].unique():
+        figs[f"pred_vs_actual_{model}"] = plots.plot_pred_vs_actual(predictions, target, model)
+        figs[f"residuals_{model}"] = plots.plot_residuals(predictions, target, model)
+    for seq in predictions["seq_id"].unique():
+        figs[f"error_over_time_{seq}"] = plots.plot_error_over_time(predictions, target, seq)
 
     rf = importance[(importance["model"] == "random_forest") & (importance["kind"] == "impurity")]
     rf_mean = rf.groupby("feature")["importance"].mean()
