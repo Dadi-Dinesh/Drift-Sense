@@ -107,6 +107,19 @@ def split_xy(
     return df[feature_names()], df[target].to_numpy(), df["seq_id"].to_numpy()
 
 
+def add_physics(df: pd.DataFrame, processed_dir: Path, fold: Fold) -> pd.DataFrame:
+    """
+    Join the fold's physics features (scripts/make_physics_features.py) onto
+    ``df`` by window. They are per fold because the calibration bias comes
+    from that fold's training flights only.
+    """
+    physics = pd.read_csv(Path(processed_dir) / f"physics_{fold.fold_id}.csv")
+    merged = df.merge(physics, on=["seq_id", "window_id"], how="left", validate="one_to_one")
+    if merged[physics.columns].isna().any().any():
+        raise ValueError(f"{fold.fold_id}: windows missing from physics_{fold.fold_id}.csv")
+    return merged
+
+
 def fold_frames(df: pd.DataFrame, fold: Fold) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Rows for a fold's training sequences and for its held-out sequence."""
     train = df[df["seq_id"].isin(fold.train)].reset_index(drop=True)
