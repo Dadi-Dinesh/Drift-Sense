@@ -14,6 +14,11 @@ For true labels ``y`` and predictions ``p`` over ``n`` windows:
   * **bias** = mean(p - y) — systematic over (+) or under (-) prediction.
     Not requested in the brief but useful for failure analysis: it shows
     how much of the error is a constant offset between sequences.
+
+``train_mae`` (added by :func:`add_train_mae`) is the same MAE on the rows
+the model was fitted on. Comparing it with the held-out ``mae`` shows
+over-fitting: a model that memorises its training sequences has a tiny
+``train_mae`` and a much larger held-out ``mae``.
 """
 from __future__ import annotations
 
@@ -82,3 +87,19 @@ def metrics_table(predictions: pd.DataFrame) -> pd.DataFrame:
         .assign(fold_id="mean", test_seq="all")
     )
     return pd.concat([per_fold, means[per_fold.columns]], ignore_index=True)
+
+
+def add_train_mae(table: pd.DataFrame, train_errors: pd.DataFrame) -> pd.DataFrame:
+    """
+    Append a ``train_mae`` column to a :func:`metrics_table` result.
+
+    ``train_errors`` has one row per (model, fold_id) with ``train_mae``;
+    each ``mean`` row gets that model's average over folds.
+    """
+    per_fold = table[table["fold_id"] != "mean"].merge(
+        train_errors[["model", "fold_id", "train_mae"]], on=["model", "fold_id"], how="left",
+    )
+    means = table[table["fold_id"] == "mean"].merge(
+        per_fold.groupby("model", as_index=False)["train_mae"].mean(), on="model", how="left",
+    )
+    return pd.concat([per_fold, means], ignore_index=True)

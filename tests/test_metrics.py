@@ -11,7 +11,7 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from vio_drift.evaluation.metrics import mae, rmse, r2, bias, metrics_table
+from vio_drift.evaluation.metrics import mae, rmse, r2, bias, metrics_table, add_train_mae
 
 
 def test_metrics_match_sklearn():
@@ -43,3 +43,20 @@ def test_metrics_table_has_fold_and_mean_rows():
     assert table.loc["f2", "mae"] == 1.0
     assert table.loc["mean", "mae"] == 0.5
     assert table.loc["mean", "n"] == 4
+
+
+def test_add_train_mae_per_fold_and_mean():
+    preds = pd.DataFrame({
+        "model": ["m"] * 4,
+        "fold_id": ["f1", "f1", "f2", "f2"],
+        "seq_id": ["A", "A", "B", "B"],
+        "y_true": [1.0, 2.0, 1.0, 2.0],
+        "y_pred": [1.0, 2.0, 2.0, 3.0],
+    })
+    train_errors = pd.DataFrame({"model": ["m", "m"], "fold_id": ["f1", "f2"],
+                                 "train_mae": [0.1, 0.3]})
+    table = add_train_mae(metrics_table(preds), train_errors).set_index("fold_id")
+    assert table.loc["f1", "train_mae"] == pytest.approx(0.1)
+    assert table.loc["f2", "train_mae"] == pytest.approx(0.3)
+    assert table.loc["mean", "train_mae"] == pytest.approx(0.2)
+    assert table.loc["mean", "mae"] == pytest.approx(0.5)

@@ -7,7 +7,8 @@ never trained or tuned on.
 
 Writes, per target (the "experiment"):
   results/metrics/<target>.csv               MAE / RMSE / R^2 / bias per model per fold,
-                                             plus a "mean" row (average over folds)
+                                             plus a "mean" row (average over folds), and
+                                             train_mae (same MAE on the training rows)
   results/metrics/<target>_importance.csv    RF impurity importance (train) and
                                              permutation importance (held-out) per fold
   results/metrics/<target>_failure_*.csv     failure analysis: opening-segment errors,
@@ -43,7 +44,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from train_ml import DEFAULT_TARGETS, model_path
 from vio_drift.evaluation import failure_analysis, plots
-from vio_drift.evaluation.metrics import metrics_table
+from vio_drift.evaluation.metrics import add_train_mae, mae, metrics_table
 from vio_drift.features.build_features import feature_names
 from vio_drift.models.ml.data import load_dataset, load_splits, split_xy, fold_frames
 from vio_drift.models.ml.registry import MODEL_NAMES
@@ -52,11 +53,15 @@ PERMUTATION_MODELS = ("random_forest", "svr")
 PERMUTATION_REPEATS = 5
 
 
-def predict_folds(df, folds, target, models_dir) -> tuple[pd.DataFrame, dict]:
-    """Long predictions table, plus the loaded models keyed by (fold_id, model)."""
-    rows, fitted = [], {}
+def predict_folds(df, folds, target, models_dir) -> tuple[pd.DataFrame, pd.DataFrame, dict]:
+    """
+    Long held-out predictions table, training MAE per (model, fold), and the
+    loaded models keyed by (fold_id, model).
+    """
+    rows, train_rows, fitted = [], [], {}
     for fold in folds:
-        _, test = fold_frames(df, fold)
+        train, test = fold_frames(df, fold)
+        X_train, y_train, _ = split_xy(train, target)
         X_test, y_test, _ = split_xy(test, target)
         for name in MODEL_NAMES:
             path = model_path(models_dir, target, fold.fold_id, name)
@@ -64,6 +69,8 @@ def predict_folds(df, folds, target, models_dir) -> tuple[pd.DataFrame, dict]:
                 raise FileNotFoundError(f"{path.name} missing — run scripts/train_ml.py first")
             model = joblib.load(path)
             fitted[(fold.fold_id, name)] = model
+            train_rows.append({"model": name, "fold_id": fold.fold_id,
+                               "train_mae": mae(y_train, model.predict(X_train))})
             rows.append(pd.DataFrame({
                 "fold_id": fold.fold_id,
                 "seq_id": test["seq_id"],
@@ -73,7 +80,7 @@ def predict_folds(df, folds, target, models_dir) -> tuple[pd.DataFrame, dict]:
                 "y_true": y_test,
                 "y_pred": model.predict(X_test),
             }))
-    return pd.concat(rows, ignore_index=True), fitted
+    return pd.concat(rows, ignore_index=True), pd.DataFrame(train_rows), fitted
 
 
 def importance_table(df, folds, target, fitted, seed) -> pd.DataFrame:
@@ -156,10 +163,10 @@ def main() -> None:
         print(f"\n{'=' * 60}\ntarget: {target}\n{'=' * 60}")
         df = load_dataset(processed, sequences, target=target)
 
-        predictions, fitted = predict_folds(df, folds, target, models_dir)
+        predictions, train_errors, fitted = predict_folds(df, folds, target, models_dir)
         predictions.to_csv(preds_dir / f"{target}.csv", index=False)
 
-        table = metrics_table(predictions)
+        table = add_train_mae(metrics_table(predictions), train_errors)
         table.to_csv(metrics_dir / f"{target}.csv", index=False)
         print(table.round(4).to_string(index=False))
 

@@ -1,13 +1,16 @@
 target,fold_id,test_seq,model,inner_cv_mae,n_candidates,best_params,fit_seconds
 err_mag_m_bc,leave_MH_01_easy,MH_01_easy,mean,0.014958810065808122,1,{},0.0
+err_mag_m_bc,leave_MH_01_easy,MH_01_easy,linear,0.06020918208723805,1,{},0.0
 err_mag_m_bc,leave_MH_01_easy,MH_01_easy,ridge,0.013750639526006882,8,"{""ridge__alpha"": 1000.0}",0.1
 err_mag_m_bc,leave_MH_01_easy,MH_01_easy,random_forest,0.012745072679461506,27,"{""max_depth"": 8, ""max_features"": 1.0, ""min_samples_leaf"": 20}",15.1
 err_mag_m_bc,leave_MH_01_easy,MH_01_easy,svr,0.012793095048623665,18,"{""regressor__svr__C"": 1.0, ""regressor__svr__epsilon"": 0.1, ""regressor__svr__gamma"": 0.001}",0.3
 err_mag_m_bc,leave_MH_02_easy,MH_02_easy,mean,0.014152890704374706,1,{},0.0
+err_mag_m_bc,leave_MH_02_easy,MH_02_easy,linear,0.03305836599030601,1,{},0.0
 err_mag_m_bc,leave_MH_02_easy,MH_02_easy,ridge,0.01297019035467152,8,"{""ridge__alpha"": 1000.0}",0.1
-err_mag_m_bc,leave_MH_02_easy,MH_02_easy,random_forest,0.012145996913632773,27,"{""max_depth"": 4, ""max_features"": 1.0, ""min_samples_leaf"": 20}",15.6
-err_mag_m_bc,leave_MH_02_easy,MH_02_easy,svr,0.01197623328066497,18,"{""regressor__svr__C"": 1.0, ""regressor__svr__epsilon"": 0.1, ""regressor__svr__gamma"": 0.001}",0.3
+err_mag_m_bc,leave_MH_02_easy,MH_02_easy,random_forest,0.012145996913632773,27,"{""max_depth"": 4, ""max_features"": 1.0, ""min_samples_leaf"": 20}",16.7
+err_mag_m_bc,leave_MH_02_easy,MH_02_easy,svr,0.01197623328066497,18,"{""regressor__svr__C"": 1.0, ""regressor__svr__epsilon"": 0.1, ""regressor__svr__gamma"": 0.001}",0.9
 err_mag_m_bc,leave_MH_03_medium,MH_03_medium,mean,0.009296443533475291,1,{},0.0
+err_mag_m_bc,leave_MH_03_medium,MH_03_medium,linear,0.0107318837263508,1,{},0.0
 err_mag_m_bc,leave_MH_03_medium,MH_03_medium,ridge,0.008891221057095357,8,"{""ridge__alpha"": 1000.0}",0.1
-err_mag_m_bc,leave_MH_03_medium,MH_03_medium,random_forest,0.008836116631050436,27,"{""max_depth"": 4, ""max_features"": 0.3, ""min_samples_leaf"": 5}",12.7
-err_mag_m_bc,leave_MH_03_medium,MH_03_medium,svr,0.008617654955866288,18,"{""regressor__svr__C"": 0.1, ""regressor__svr__epsilon"": 0.1, ""regressor__svr__gamma"": 0.01}",0.4
+err_mag_m_bc,leave_MH_03_medium,MH_03_medium,random_forest,0.008836116631050436,27,"{""max_depth"": 4, ""max_features"": 0.3, ""min_samples_leaf"": 5}",29.7
+err_mag_m_bc,leave_MH_03_medium,MH_03_medium,svr,0.008617654955866288,18,"{""regressor__svr__C"": 0.1, ""regressor__svr__epsilon"": 0.1, ""regressor__svr__gamma"": 0.01}",1.0
