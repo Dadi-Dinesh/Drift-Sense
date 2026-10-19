@@ -248,7 +248,7 @@ def plot_easy_vs_medium(loaded: dict, labels: pd.DataFrame) -> None:
     axes[1].tick_params(axis="x", rotation=15)
 
     labels.boxplot(column="err_mag_m", by="seq_id", ax=axes[2])
-    axes[2].set_title("Raw 1 s drift by sequence")
+    axes[2].set_title("Raw 2 s drift by sequence")
     axes[2].set_xlabel("")
     axes[2].set_ylabel("err_mag_m (m)")
     fig.suptitle("Easy vs medium")
