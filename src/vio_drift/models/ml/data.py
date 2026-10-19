@@ -48,6 +48,26 @@ def load_splits(splits_path: Path) -> list[Fold]:
     return folds
 
 
+def chronological_split(
+    flight: pd.DataFrame,
+    train_frac: float = 0.6,
+    gap_windows: int = 8,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Split one flight in time: the first ``train_frac`` of its windows go to
+    train, the rest to test, and ``gap_windows`` windows before the cut are
+    dropped so no training window overlaps a test window in time.
+
+    The default gap of 8 windows (2 s at 0.25 s stride) is twice the 1 s
+    window length, so the closest train and test windows share no samples.
+    """
+    flight = flight.sort_values("t_start_ns")
+    cut = int(len(flight) * train_frac)
+    if cut - gap_windows <= 0 or cut >= len(flight):
+        raise ValueError(f"train_frac={train_frac} leaves an empty train or test part")
+    return flight.iloc[: cut - gap_windows], flight.iloc[cut:]
+
+
 def load_dataset(
     processed_dir: Path,
     sequences: list[str],
