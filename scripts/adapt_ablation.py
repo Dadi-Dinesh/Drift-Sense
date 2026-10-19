@@ -3,7 +3,7 @@ Part D ablation: does training on the start of a flight help on the rest of it?
 
 MH_03_medium fails under leave-one-sequence-out because nothing like it is in
 training. Here each flight in turn is split in time (data.chronological_split):
-its first 60% of windows, minus a 2 s gap, may join training; its last 40% is
+its first 60% of windows, minus a 4 s gap, may join training; its last 40% is
 the test set. Every model is scored twice on the *same* test windows:
 
   * unseen   — trained on the other two flights only (as in train_ml.py);
@@ -46,7 +46,7 @@ from vio_drift.models.ml.registry import model_specs
 from vio_drift.models.ml.tuning import tune
 
 TRAIN_FRAC = 0.6   # first 60% of the held-out flight may be trained on
-GAP_WINDOWS = 8    # 2 s at 0.25 s stride: no train window overlaps a test window
+GAP_WINDOWS = 16   # 4 s at 0.25 s stride: no 2 s train window overlaps a test window
 EASY_SHARE = 0.6   # mix60_40: fraction of training windows from easy flights
 
 

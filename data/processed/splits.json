@@ -1,7 +1,7 @@
 {
   "scheme": "leave_one_sequence_out",
-  "reason": "Windows overlap (1.0 s length, 0.25 s stride). A random row split would put neighbouring windows in both train and test and leak the label.",
-  "window_seconds": 1.0,
+  "reason": "Windows overlap (2.0 s length, 0.25 s stride). A random row split would put neighbouring windows in both train and test and leak the label.",
+  "window_seconds": 2.0,
   "stride_seconds": 0.25,
   "primary_target": "err_mag_m",
   "axis_targets": ["err_dx", "err_dy", "err_dz"],

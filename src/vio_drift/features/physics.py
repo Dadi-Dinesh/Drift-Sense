@@ -1,8 +1,8 @@
 """
 Physics feature: the drift a *known* IMU bias would cause in one window.
 
-Most of ``err_mag_m`` (~0.18 m of ~0.19 m per 1 s window) is the raw IMU's
-bias being integrated, and the EuRoC MH flights share one sensor whose
+Most of ``err_mag_m`` (~0.18 m of ~0.19 m per 1 s window, ~1.2 m per 2 s)
+is the raw IMU's bias being integrated, and the EuRoC MH flights share one sensor whose
 ground-truth biases are almost identical from flight to flight. So a bias
 measured on the *training* flights is a fair calibration constant for a
 new flight, the same way a real system reuses a previous calibration.
