@@ -37,13 +37,10 @@ from vio_drift.evaluation.metrics import mae
 from vio_drift.models.ml.data import load_dataset, load_splits, split_xy, fold_frames
 from vio_drift.models.ml.registry import model_specs
 
-# Most flexible corner of each PARAM_GRID: weakest penalty, largest step and
-# smallest batches for gradient descent, deepest trees.
+# Most flexible corner of each PARAM_GRID: weakest penalty, deepest trees.
 LOOSE_PARAMS: dict[str, dict] = {
     "ridge": {"ridge__alpha": 0.01},
     "lasso": {"lasso__alpha": 1e-6},
-    "minibatch_gd": {"gd__learning_rate": 0.01, "gd__batch_size": 32,
-                     "gd__penalty": "l2", "gd__alpha": 1e-4},
     "random_forest": {"max_depth": None, "min_samples_leaf": 1, "max_features": 1.0},
 }
 

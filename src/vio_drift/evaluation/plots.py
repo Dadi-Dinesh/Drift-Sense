@@ -27,7 +27,6 @@ MODEL_LABELS = {
     "ridge": "Ridge",
     "random_forest": "Random Forest",
     "lasso": "Lasso",
-    "minibatch_gd": "Mini-batch GD",
 }
 
 

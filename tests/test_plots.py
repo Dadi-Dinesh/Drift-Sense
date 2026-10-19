@@ -51,6 +51,6 @@ def test_feature_importance_plot_keeps_top_n():
 
 
 def test_every_model_gets_its_own_colour():
-    models = ["mean", "linear", "ridge", "lasso", "minibatch_gd", "random_forest"]
+    models = ["mean", "linear", "ridge", "lasso", "random_forest"]
     colors = plots._model_colors(models)
     assert len(set(colors.values())) == len(models)
