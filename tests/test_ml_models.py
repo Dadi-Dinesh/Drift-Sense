@@ -16,6 +16,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from vio_drift.models.ml.data import load_splits, load_dataset, fold_frames
 from vio_drift.models.ml.registry import model_specs
 from vio_drift.models.ml.tuning import tune
+from vio_drift.models.ml.minibatch_gd import MiniBatchGDRegressor
+from sklearn.linear_model import LinearRegression
 
 ROOT = Path(__file__).resolve().parents[1]
 PROCESSED = ROOT / "data" / "processed"
@@ -38,14 +40,7 @@ def test_mean_baseline_predicts_training_mean():
     assert np.allclose(model.predict(X), y.mean())
 
 
-def test_svr_scales_features_and_target():
-    spec = next(s for s in model_specs() if s.name == "svr")
-    model = spec.build()
-    assert "scaler" in model.regressor.named_steps
-    assert model.transformer is not None
-
-
-@pytest.mark.parametrize("name", ["linear", "ridge", "random_forest", "svr"])
+@pytest.mark.parametrize("name", ["linear", "ridge", "lasso", "minibatch_gd", "random_forest"])
 def test_models_beat_mean_on_learnable_toy_data(name):
     X, y, _ = _toy()
     spec = next(s for s in model_specs() if s.name == name)
@@ -88,3 +83,35 @@ def test_real_folds_keep_test_sequence_out_of_train():
         assert set(train["seq_id"]).isdisjoint(test["seq_id"])
         assert set(test["seq_id"]) == set(fold.test)
         assert len(train) + len(test) == len(df)
+
+
+def test_lasso_zeroes_irrelevant_features():
+    X, y, _ = _toy()                       # only column "a" drives y
+    spec = next(s for s in model_specs() if s.name == "lasso")
+    model = spec.build().set_params(lasso__alpha=1e-3).fit(X, y)
+    w = model[-1].coef_
+    assert w[0] != 0.0 and np.all(w[1:] == 0.0)
+
+
+def test_minibatch_gd_loss_decreases_and_matches_ols():
+    X, y, _ = _toy()
+    Xs = (X - X.mean()) / X.std()
+    gd = MiniBatchGDRegressor(learning_rate=0.05, batch_size=16, epochs=200,
+                              penalty="l2", alpha=0.0).fit(Xs, y)
+    assert gd.loss_curve_[-1] < gd.loss_curve_[0]
+    ols = LinearRegression().fit(Xs, y)
+    assert np.allclose(gd.coef_, ols.coef_, atol=2e-3)
+    assert gd.intercept_ == pytest.approx(ols.intercept_, abs=1e-3)
+
+
+@pytest.mark.parametrize("batch_size", [1, 1000])   # stochastic and full-batch extremes
+def test_minibatch_gd_batch_size_extremes(batch_size):
+    X, y, _ = _toy()
+    gd = MiniBatchGDRegressor(learning_rate=0.01, batch_size=batch_size, epochs=100).fit(X, y)
+    assert np.all(np.isfinite(gd.predict(X)))
+
+
+def test_minibatch_gd_rejects_unknown_penalty():
+    X, y, _ = _toy()
+    with pytest.raises(ValueError):
+        MiniBatchGDRegressor(penalty="elastic").fit(X, y)

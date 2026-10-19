@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 from matplotlib.figure import Figure
 
-SERIES = ("#2a78d6", "#eb6834", "#1baf7a", "#8e5bd0")  # blue, orange, aqua, violet
+SERIES = ("#2a78d6", "#eb6834", "#1baf7a", "#8e5bd0", "#d6408b")  # blue, orange, aqua, violet, magenta
 INK = "#0b0b0b"
 INK_MUTED = "#52514e"
 BASELINE_GREY = "#8a8985"
@@ -26,7 +26,8 @@ MODEL_LABELS = {
     "linear": "Linear (OLS)",
     "ridge": "Ridge",
     "random_forest": "Random Forest",
-    "svr": "SVR (RBF)",
+    "lasso": "Lasso",
+    "minibatch_gd": "Mini-batch GD",
 }
 
 

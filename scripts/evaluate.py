@@ -49,7 +49,7 @@ from vio_drift.features.build_features import feature_names
 from vio_drift.models.ml.data import load_dataset, load_splits, split_xy, fold_frames
 from vio_drift.models.ml.registry import MODEL_NAMES
 
-PERMUTATION_MODELS = ("random_forest", "svr")
+PERMUTATION_MODELS = ("random_forest", "ridge")
 PERMUTATION_REPEATS = 5
 
 

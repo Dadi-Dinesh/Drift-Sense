@@ -22,7 +22,7 @@ def _toy_predictions() -> pd.DataFrame:
     rows = []
     for seq in ["A", "B"]:
         y = rng.normal(0.18, 0.01, 20)
-        for model in ["mean", "ridge", "random_forest", "svr"]:
+        for model in ["mean", "ridge", "lasso", "random_forest"]:
             rows.append(pd.DataFrame({
                 "fold_id": f"leave_{seq}", "seq_id": seq, "window_id": range(20),
                 "t_start_ns": np.arange(20) * 250_000_000, "model": model,
@@ -34,7 +34,7 @@ def _toy_predictions() -> pd.DataFrame:
 def test_prediction_plots_render():
     preds = _toy_predictions()
     figs = [plots.plot_error_over_time(preds, "err_mag_m", seq) for seq in ["A", "B"]]
-    for model in ["mean", "ridge", "random_forest", "svr"]:
+    for model in ["mean", "ridge", "lasso", "random_forest"]:
         figs.append(plots.plot_pred_vs_actual(preds, "err_mag_m", model))
         figs.append(plots.plot_residuals(preds, "err_mag_m", model))
     for fig in figs:
@@ -51,6 +51,6 @@ def test_feature_importance_plot_keeps_top_n():
 
 
 def test_every_model_gets_its_own_colour():
-    models = ["mean", "linear", "ridge", "random_forest", "svr"]
+    models = ["mean", "linear", "ridge", "lasso", "minibatch_gd", "random_forest"]
     colors = plots._model_colors(models)
     assert len(set(colors.values())) == len(models)
