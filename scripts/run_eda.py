@@ -96,9 +96,10 @@ def plot_raw_imu(loaded: dict, seq: str, seconds: float = 10.0) -> None:
 
 
 def plot_trajectories(loaded: dict) -> None:
-    fig = plt.figure(figsize=(12, 4.2))
+    n = len(loaded)
+    fig = plt.figure(figsize=(4.2 * n, 4.2))
     for i, (seq, (_, gt)) in enumerate(loaded.items()):
-        ax = fig.add_subplot(1, 3, i + 1, projection="3d")
+        ax = fig.add_subplot(1, n, i + 1, projection="3d")
         ax.plot(gt["px"], gt["py"], gt["pz"], lw=0.7)
         ax.set_title(seq)
         ax.set_xlabel("x (m)")
@@ -172,7 +173,10 @@ def plot_label_distributions(labels: pd.DataFrame) -> None:
 
 
 def plot_label_over_time(labels: pd.DataFrame) -> None:
-    fig, axes = plt.subplots(3, 1, figsize=(10, 7), sharex=False)
+    n = labels["seq_id"].nunique()
+    fig, axes = plt.subplots(n, 1, figsize=(10, 2.4 * n + 0.8), sharex=False)
+    if n == 1:
+        axes = [axes]
     for ax, (seq, g) in zip(axes, labels.groupby("seq_id")):
         t = (g["t_start_ns"] - g["t_start_ns"].iloc[0]) / 1e9
         ax.plot(t, g["err_mag_m"], lw=0.7, label="raw")
@@ -206,11 +210,12 @@ def plot_axis_errors(labels: pd.DataFrame) -> None:
     plt.close(fig)
 
 
-def plot_window_length() -> None:
+def plot_window_length(config: dict) -> None:
     path = ROOT / "results" / "diagnostics" / "window_length.csv"
     if not path.exists():
         return
     df = pd.read_csv(path)
+    df = df[df["seq_id"].isin(config["data"]["sequences"])]
     fig, axes = plt.subplots(1, 2, figsize=(11, 4), sharex=True)
     for seq, g in df.groupby("seq_id"):
         axes[0].plot(g["window_seconds"], g["mean_err_mag_m"], marker="o", label=seq)
@@ -226,7 +231,7 @@ def plot_window_length() -> None:
     plt.close(fig)
 
 
-def plot_easy_vs_medium(loaded: dict, labels: pd.DataFrame) -> None:
+def plot_sequence_comparison(loaded: dict, labels: pd.DataFrame) -> None:
     fig, axes = plt.subplots(1, 3, figsize=(12, 3.8))
     speeds = []
     names = []
@@ -251,10 +256,13 @@ def plot_easy_vs_medium(loaded: dict, labels: pd.DataFrame) -> None:
     axes[2].set_title("Raw 1 s drift by sequence")
     axes[2].set_xlabel("")
     axes[2].set_ylabel("err_mag_m (m)")
-    fig.suptitle("Easy vs medium")
+    fig.suptitle("Sequence comparison (easy flights only)")
     fig.tight_layout()
-    fig.savefig(FIG / "easy_vs_medium.png")
+    fig.savefig(FIG / "sequence_comparison.png")
     plt.close(fig)
+    stale = FIG / "easy_vs_medium.png"
+    if stale.exists():
+        stale.unlink()
 
 
 def main() -> None:
@@ -284,8 +292,8 @@ def main() -> None:
     plot_label_distributions(labels)
     plot_label_over_time(labels)
     plot_axis_errors(labels)
-    plot_window_length()
-    plot_easy_vs_medium(loaded, labels)
+    plot_window_length(config)
+    plot_sequence_comparison(loaded, labels)
 
     print(f"[eda] figures → {FIG}")
     print(f"[eda] tables  → {RESULTS}")
