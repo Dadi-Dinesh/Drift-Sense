@@ -8,7 +8,6 @@ data:
   sequences:
     - "MH_01_easy"
     - "MH_02_easy"
-    - "MH_03_medium"
 
 windowing:
   window_seconds: 1.0     # length of each window
