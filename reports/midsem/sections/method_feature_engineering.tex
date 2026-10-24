@@ -2,9 +2,9 @@
 % Paste this into reports/midsem/sections/method.tex, alongside
 % Part A's label-construction subsection (method_label_construction.tex).
 %
-% Numbers here come from the pooled three-sequence feature tables produced
-% by scripts/make_features.py and the analysis in notebooks/04. If the
-% feature set or sequences change, re-run that notebook and update them.
+% Numbers here come from the pooled two-sequence easy feature tables (MH_01_easy,
+% MH_02_easy) produced by scripts/make_features.py and the analysis in notebooks/04.
+% If the feature set or sequences change, re-run that notebook and update them.
 
 \subsection{Feature Engineering}
 \label{sec:feature-engineering}
@@ -28,8 +28,8 @@ asymmetric or spike-laden windows; and the zero-crossing rate, computed about
 each channel's own mean so the accelerometer gravity offset does not dominate,
 is a cheap proxy for oscillation frequency. This family contains the single
 strongest linear correlate of the label, the accelerometer $x$-axis mean and
-RMS ($|r| \approx 0.47$), and supplies the top-ranked feature under a
-RandomForest importance analysis (\texttt{ax\_rms}).
+RMS ($|r| \approx 0.67$), and supplies the top-ranked features under a
+RandomForest importance analysis (\texttt{ax\_mean} and \texttt{ax\_rms}).
 
 \subsubsection{Frequency-domain features (18)}
 Time-domain statistics describe \emph{how much} a window moves but not
@@ -40,7 +40,7 @@ essential: without it the accelerometer's large gravity/DC term would be read
 as a spurious $0\,\mathrm{Hz}$ peak. Spectral entropy distinguishes clean,
 tonal motion (energy in one band) from broadband, noise-like windows; the
 per-axis spectral-entropy features are among the strongest label correlates
-($|r| \approx 0.31$--$0.37$), consistent with noise-like windows drifting
+($|r| \approx 0.47$--$0.52$), consistent with noise-like windows drifting
 more than smoothly manoeuvring ones.
 
 \subsubsection{Cross-axis and magnitude features (26)}
@@ -70,7 +70,7 @@ handoff tables \texttt{features\_<seq>.csv} are therefore stored
 \subsubsection{Redundancy and feature selection}
 The feature set is deliberately broad and contains known collinearities
 (variance is the square of standard deviation; RMS approximates the absolute
-mean when the mean dominates). Pooled across the three sequences, $17$ feature
+mean when the mean dominates). Pooled across the two easy sequences, $22$ feature
 pairs exceed a $0.95$ absolute correlation. Tree-based models are insensitive
 to this redundancy, and a feature-selection experiment
 (notebook~\texttt{04\_feature\_engineering}) confirms that a compact subset of

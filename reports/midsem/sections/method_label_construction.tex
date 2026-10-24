@@ -18,17 +18,16 @@ short time window — directly from these two streams.
 IMU measurements (200\,Hz) and ground-truth pose estimates are recorded
 asynchronously. For every IMU sample we attach the temporally nearest
 ground-truth sample, discarding IMU samples whose nearest match exceeds
-a 20\,ms tolerance. Across the three sequences used in Phase 1
-(MH\_01\_easy, MH\_02\_easy, MH\_03\_medium), this discarded between
-1.2\% and 2.6\% of IMU samples, concentrated at sequence boundaries
+a 20\,ms tolerance. Across the two sequences used in Phase 1
+(MH\_01\_easy and MH\_02\_easy), this discarded between
+1.2\% and 1.3\% of IMU samples, concentrated at sequence boundaries
 where ground-truth coverage is sparser than IMU coverage.
 
 \subsubsection{Windowing}
 The aligned stream is divided into overlapping windows of
 $T_w = 1.0\,\mathrm{s}$ (200 IMU samples at 200\,Hz), with a stride of
 $T_s = 0.25\,\mathrm{s}$ between consecutive window starts. This yielded
-724, 596, and 523 windows for MH\_01\_easy, MH\_02\_easy, and
-MH\_03\_medium respectively.
+724 and 596 windows for MH\_01\_easy and MH\_02\_easy respectively.
 
 \subsubsection{IMU Strapdown Integration}
 For each window, we compute a model-free position estimate by
@@ -69,10 +68,10 @@ timestamp and the true position $p_{\text{end}}$ from ground truth:
 The signed per-axis error $(\Delta x, \Delta y, \Delta z)$ is retained
 alongside the scalar magnitude for use in the Phase 2 trajectory
 correction step and as additional Phase 1 regression targets. Across the
-three sequences, mean 1-second-window \emph{raw}-IMU drift was consistent,
-ranging from 0.181\,m to 0.186\,m, with maximum single-window error of
-0.30\,m on MH\_03\_medium. After oracle bias subtraction the same 1\,s
-windows have mean residual 0.018--0.030\,m (MH\_03 still the largest).
+two sequences, mean 1-second-window \emph{raw}-IMU drift was 0.186\,m on
+both, with maximum single-window error of 0.22\,m (MH\_01\_easy). After
+oracle bias subtraction the same 1\,s windows have mean residual
+0.021\,m (MH\_01) and 0.018\,m (MH\_02).
 
 The same windows are also integrated after subtracting the dataset's
 ground-truth IMU bias estimates. The resulting columns

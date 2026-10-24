@@ -24,16 +24,15 @@ EuRoC MAV Dataset — manual download steps
    (this is the current, official home for the dataset)
 
 2. Download "Machine Hall Datasets (ZIP)" — it contains MH_01–MH_05.
-   We only need MH_01_easy, MH_02_easy, MH_03_medium for Phase 1.
+   We only need MH_01_easy and MH_02_easy for Phase 1.
 
 3. Extract it so the result looks like:
 
      data/raw/euroc/MH_01_easy/mav0/imu0/data.csv
      data/raw/euroc/MH_01_easy/mav0/state_groundtruth_estimate0/data.csv
      data/raw/euroc/MH_02_easy/mav0/...
-     data/raw/euroc/MH_03_medium/mav0/...
 
-   You can delete mav0/cam0 and mav0/cam1 for these three — we never
+   You can delete mav0/cam0 and mav0/cam1 for these two — we never
    read camera images in Phase 1.
 
 4. Run this script again with --check, or just run:
@@ -43,7 +42,7 @@ EuRoC MAV Dataset — manual download steps
 
 def check(config_path: Path) -> None:
     config = yaml.safe_load(config_path.read_text())
-    raw_dir = Path(config["data"]["raw_dir"])
+    raw_dir = config_path.resolve().parents[1] / config["data"]["raw_dir"]
     sequences = config["data"]["sequences"]
 
     print("Checking data/raw/euroc/ ...\n")

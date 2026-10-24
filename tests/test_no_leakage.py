@@ -15,10 +15,12 @@ def _splits() -> dict:
     return json.loads(SPLITS_PATH.read_text())
 
 
-def test_splits_file_exists_and_has_three_folds():
+def test_splits_file_exists_and_has_one_fold_per_sequence():
     data = _splits()
     assert data["scheme"] == "leave_one_sequence_out"
-    assert len(data["folds"]) == 3
+    assert data["sequences"] == ["MH_01_easy", "MH_02_easy"]
+    assert len(data["folds"]) == len(data["sequences"])
+    assert "MH_03_medium" not in data["sequences"]
 
 
 def test_no_sequence_in_both_train_and_test():

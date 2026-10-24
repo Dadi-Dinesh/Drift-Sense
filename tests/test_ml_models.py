@@ -19,7 +19,7 @@ from vio_drift.models.ml.tuning import tune
 
 ROOT = Path(__file__).resolve().parents[1]
 PROCESSED = ROOT / "data" / "processed"
-SEQUENCES = ["MH_01_easy", "MH_02_easy", "MH_03_medium"]
+SEQUENCES = ["MH_01_easy", "MH_02_easy"]
 
 
 def _toy(n_per_seq: int = 60, seed: int = 0):

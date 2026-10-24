@@ -1,7 +1,7 @@
 # Data setup (Part A)
 
 The team tracks:
-- `data/raw/euroc/` — IMU + ground-truth CSVs for MH_01, MH_02, MH_03
+- `data/raw/euroc/` — IMU + ground-truth CSVs for MH_01 and MH_02
 - `data/interim/aligned_*.csv` — timestamp-aligned tables
 - `data/processed/` — window labels + raw window tensors
 
@@ -10,7 +10,7 @@ Camera folders (`cam0/`, `cam1/`) stay out of git (see `.gitignore`).
 ## 1. Download (only if the CSVs are missing)
 From the ETH Research Collection page for EuRoC (DOI: 10.3929/ethz-b-000690084),
 download **"Machine Hall Datasets (ZIP)"**. It contains MH_01–MH_05; we only use
-MH_01_easy, MH_02_easy, MH_03_medium for Phase 1.
+MH_01_easy and MH_02_easy for Phase 1.
 
 ## 2. Extract only what we need
 ```bash
@@ -28,9 +28,7 @@ data/raw/euroc/
 │   └── mav0/
 │       ├── imu0/data.csv
 │       └── state_groundtruth_estimate0/data.csv
-├── MH_02_easy/
-│   └── mav0/...
-└── MH_03_medium/
+└── MH_02_easy/
     └── mav0/...
 ```
 

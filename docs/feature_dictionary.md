@@ -111,7 +111,7 @@ sequence — fitting across all sequences first would leak test statistics.
 
 Several features are highly collinear by construction — e.g. `c_var` is
 `c_std²`, and `c_rms ≈ |c_mean|` when the mean dominates. Pooled across the
-three sequences, 17 feature pairs have |correlation| > 0.95. This is expected
+two easy sequences (`MH_01_easy`, `MH_02_easy`), 22 feature pairs have |correlation| > 0.95. This is expected
 and not a bug: tree models are insensitive to it, and `notebook 04` runs
 correlation and feature-selection experiments to show how a reduced feature
 set performs. See that notebook for the current ranking.
