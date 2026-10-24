@@ -25,6 +25,10 @@ from vio_drift.features.build_features import feature_names
 
 ID_COLS = ("seq_id", "window_id", "t_start_ns")
 
+# 16 windows = 4 s at 0.25 s stride: twice the 2 s window length, so two
+# windows this far apart share no IMU samples.
+GAP_WINDOWS = 16
+
 
 @dataclass(frozen=True)
 class Fold:
@@ -51,7 +55,7 @@ def load_splits(splits_path: Path) -> list[Fold]:
 def chronological_split(
     flight: pd.DataFrame,
     train_frac: float = 0.6,
-    gap_windows: int = 16,
+    gap_windows: int = GAP_WINDOWS,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
     Split one flight in time: the first ``train_frac`` of its windows go to

@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from vio_drift.models.ml.data import load_splits, load_dataset, fold_frames
 from vio_drift.models.ml.registry import model_specs
-from vio_drift.models.ml.tuning import tune
+from vio_drift.models.ml.tuning import inner_splits, tune
 
 ROOT = Path(__file__).resolve().parents[1]
 PROCESSED = ROOT / "data" / "processed"
@@ -64,11 +64,34 @@ def test_tune_handles_empty_grid():
     assert result.best_params == {}
 
 
-def test_tune_refuses_single_sequence():
+def test_inner_splits_hold_out_whole_sequences():
+    _, _, groups = _toy()
+    splits = inner_splits(groups)
+    assert len(splits) == 3
+    for train_idx, test_idx in splits:
+        assert len(set(groups[test_idx])) == 1
+        assert not set(groups[train_idx]) & set(groups[test_idx])
+
+
+def test_inner_splits_purge_a_gap_around_each_time_block():
+    groups = np.full(300, "S1")
+    splits = inner_splits(groups, n_blocks=3, gap_windows=16)
+    assert len(splits) == 3
+    for train_idx, test_idx in splits:
+        assert np.all(np.diff(test_idx) == 1)          # one contiguous block
+        lo, hi = test_idx[0], test_idx[-1]
+        dist = np.minimum(np.abs(train_idx - lo), np.abs(train_idx - hi))
+        assert dist.min() > 16
+    assert sorted(np.concatenate([t for _, t in splits])) == list(range(300))
+
+
+def test_tune_works_on_a_single_sequence():
     X, y, _ = _toy()
     spec = next(s for s in model_specs() if s.name == "ridge")
-    with pytest.raises(ValueError):
-        tune(spec.build(), spec.param_grid, X, y, np.full(len(y), "S1"))
+    result = tune(spec.build(), spec.param_grid, X, y, np.full(len(y), "S1"),
+                  n_jobs=1, gap_windows=4)
+    assert set(result.best_params) == set(spec.param_grid)
+    assert result.inner_cv_mae > 0
 
 
 @pytest.mark.skipif(not (PROCESSED / "features_MH_01_easy.csv").exists(),
