@@ -30,7 +30,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from vio_drift.data.windowing import make_windows
 from vio_drift.features.physics import physics_features, training_bias
-from vio_drift.models.ml.data import load_splits
+from vio_drift.data.splits import load_splits
 
 
 def main() -> None:

@@ -36,14 +36,14 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import yaml
+from sklearn.metrics import r2_score as r2
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from vio_drift.data.windowing import make_windows
-from vio_drift.evaluation.metrics import r2
 from vio_drift.features.physics import bias_error, training_bias
 from vio_drift.labels.drift_label import compute_window_labels
-from vio_drift.models.ml.data import load_splits
+from vio_drift.data.splits import load_splits
 
 WINDOW_LENGTHS = [0.5, 1.0, 1.5, 2.0]
 STRIDE_SECONDS = 0.5  # coarser than the 0.25 s hand-off to keep this quick
