@@ -9,8 +9,8 @@
 \subsection{Feature Engineering}
 \label{sec:feature-engineering}
 
-Each window is a $200 \times 6$ matrix of raw IMU samples (three gyroscope
-and three accelerometer axes over one second). Classic regressors cannot
+Each window is a $400 \times 6$ matrix of raw IMU samples (three gyroscope
+and three accelerometer axes over two seconds). Classic regressors cannot
 consume this raw tensor directly, so we summarise every window as a single
 fixed-length vector of $104$ hand-crafted features. The guiding hypothesis
 is that open-loop inertial integration accumulates position error fastest in
@@ -27,9 +27,12 @@ the integrator must contend with; the shape terms (skewness, kurtosis) flag
 asymmetric or spike-laden windows; and the zero-crossing rate, computed about
 each channel's own mean so the accelerometer gravity offset does not dominate,
 is a cheap proxy for oscillation frequency. This family contains the single
-strongest linear correlate of the label, the accelerometer $x$-axis mean and
-RMS ($|r| \approx 0.67$), and supplies the top-ranked features under a
-RandomForest importance analysis (\texttt{ax\_mean} and \texttt{ax\_rms}).
+strongest linear correlates of the label, the accelerometer $x$- and
+$z$-axis means and RMS ($|r| \approx 0.87$--$0.88$), and supplies the
+top-ranked features under a RandomForest importance analysis
+(\texttt{az\_mean}, \texttt{az\_rms}). The accelerometer means mostly encode
+the window's tilt against gravity, which sets how the IMU bias projects into
+the world frame (Section~\ref{sec:physics-feature}).
 
 \subsubsection{Frequency-domain features (18)}
 Time-domain statistics describe \emph{how much} a window moves but not
@@ -40,8 +43,8 @@ essential: without it the accelerometer's large gravity/DC term would be read
 as a spurious $0\,\mathrm{Hz}$ peak. Spectral entropy distinguishes clean,
 tonal motion (energy in one band) from broadband, noise-like windows; the
 per-axis spectral-entropy features are among the strongest label correlates
-($|r| \approx 0.47$--$0.52$), consistent with noise-like windows drifting
-more than smoothly manoeuvring ones.
+($|r| \approx 0.35$--$0.74$, highest for the accelerometer), consistent with
+noise-like windows drifting more than smoothly manoeuvring ones.
 
 \subsubsection{Cross-axis and magnitude features (26)}
 A drone is a rigid body, so its axes are coupled; three groups of features
