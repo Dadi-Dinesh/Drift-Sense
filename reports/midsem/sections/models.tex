@@ -1,14 +1,143 @@
 % Models section (Part D, Milestone 5)
 % Include from reports/midsem/main.tex.
 %
-% Part D is being rebuilt from scratch; this section will be rewritten.
+% Describes the models in src/vio_drift/models/ml/models.py, the alpha
+% tuning in tuning.py and the protocol in splits.json. Alpha grids are the
+% MODELS entries in models.py; chosen values are in
+% results/metrics/err_mag_m.csv (column alpha). Notebook 05 walks through
+% all of it.
 
 \section{Models}
 \label{sec:models}
 
-% TODO: models, tuning and evaluation protocol.
+Every model maps a window's feature vector $\mathbf{x} \in \mathbb{R}^{104}$
+(Section~\ref{sec:feature-engineering}) to a predicted drift $\hat{y}$, the
+2\,s raw-IMU position error \texttt{err\_mag\_m} in metres. We compare a mean
+baseline with three linear models: ordinary least squares (OLS), Ridge and
+Lasso. Ridge and Lasso each have one penalty strength $\alpha$, chosen on the
+training flight only (Section~\ref{sec:protocol}).
+
+\subsection{Baseline and linear models}
+
+\paragraph{Mean baseline.}
+Predict the average training label for every window,
+$\hat{y} = \bar{y}_{\text{train}}$. It ignores the features, so a model that
+cannot beat it has learned nothing that transfers to a new flight. The label is
+about 1.2\,m per window but varies by only 6--8\,cm around that
+(Section~\ref{sec:dataset-eda}), so the baseline is already close in absolute
+terms; $R^2$ measures how much of that 6--8\,cm variation a model explains.
+
+\paragraph{Linear regression (OLS).}
+The linear model $\hat{y} = \mathbf{w}^\top \mathbf{x} + b$ that minimises the
+squared training error $\sum_{i} (y_i - \mathbf{w}^\top \mathbf{x}_i - b)^2$,
+with nothing to tune. It is the unregularised reference: comparing it with
+Ridge and Lasso measures what their penalties buy.
+
+\paragraph{Ridge regression.}
+The same linear model, fitted by minimising
+\begin{equation}
+  \sum_{i} \bigl(y_i - \mathbf{w}^\top \mathbf{x}_i - b\bigr)^2
+  + \alpha \lVert \mathbf{w} \rVert_2^2 .
+\end{equation}
+The L2 penalty shrinks every weight towards zero. It is needed because many
+features are near-duplicates (variance is the square of standard deviation;
+25 feature pairs have $|r| > 0.95$ on the 2\,s windows): least squares can give such a pair large
+weights of opposite sign that cancel on the training flight and fail on a new
+one. With 105 parameters and only 592--720 training windows, OLS has room to
+do exactly that. We search $\alpha$ over 17 values from $10^{-3}$ to $10^{5}$
+(half-decade steps).
+
+\paragraph{Lasso regression.}
+The same model with an L1 penalty,
+\begin{equation}
+  \frac{1}{2n}\sum_{i} \bigl(y_i - \mathbf{w}^\top \mathbf{x}_i - b\bigr)^2
+  + \alpha \lVert \mathbf{w} \rVert_1 ,
+  \qquad \lVert \mathbf{w} \rVert_1 = \textstyle\sum_j |w_j| .
+\end{equation}
+L2 shrinks every weight a little; L1 pushes weak weights to \emph{exactly}
+zero, so Lasso also selects features, and from a group of near-duplicates it
+tends to keep one. Because the label's spread is only a few centimetres, the
+useful $\alpha$ values are small: at $\alpha = 0.1$ every weight is already
+zero and Lasso becomes the mean baseline. We search 16 values from $10^{-6}$
+to $10^{-1}$.
+
+For OLS, Ridge and Lasso the features are standardised (zero mean, unit
+variance) inside the model pipeline, so the penalty treats every feature
+equally and the scaler's mean and standard deviation come from the training
+flight only.
 
 \subsection{Physics feature: the drift a calibrated bias explains}
 \label{sec:physics-feature}
 
-% TODO: describe features/physics.py (per-fold bias from the training flight).
+About 95\% of the raw label is integrated IMU bias
+(Section~\ref{sec:label-construction}). Both flights use the same sensor, so a
+bias measured on the \emph{training} flight is a fair calibration constant for
+the test flight, as a real system reuses an earlier calibration. For each window
+we integrate the raw IMU twice from the same ground-truth start state the label
+uses: once as-is, and once after subtracting the calibration bias
+$\bar{\mathbf{b}}$ (gyroscope and accelerometer, 6 values). The difference
+\begin{equation}
+  \mathbf{d} = \hat{p}_{\text{end}}^{\text{raw}} - \hat{p}_{\text{end}}^{\bar{\mathbf{b}}}
+\end{equation}
+is the position error that bias alone accounts for. Its components
+\texttt{phys\_dx}, \texttt{phys\_dy}, \texttt{phys\_dz} and magnitude
+\texttt{phys\_mag} form four extra features (\texttt{features/physics.py}).
+$\bar{\mathbf{b}}$ is the mean ground-truth bias of the fold's training flight,
+so each fold has its own table and the test flight's bias is never used. With
+the true per-window bias, $\mathbf{d}$ equals the raw minus bias-corrected label
+exactly (\texttt{tests/test\_physics\_features.py}). Like the label, the feature
+assumes the ground-truth start state of each window.
+
+The feature is used without any fitting in Section~\ref{sec:window-length}
+(predict \texttt{phys\_mag} directly). It is \emph{not} part of the 104 inputs
+of the models in Section~\ref{sec:results-heldout}; adding it is future work.
+
+\subsection{Evaluation protocol}
+\label{sec:protocol}
+
+\paragraph{Outer split: leave one flight out.}
+Windows overlap by 87.5\% (2\,s length, 0.25\,s stride), so a random
+train/test split would score a model on near-copies of its training windows.
+We split by flight instead (\texttt{splits.json}): train on MH\_02\_easy and
+test on MH\_01\_easy, then the reverse. Only these held-out scores are
+reported, and the test flight is used for nothing else.
+
+\paragraph{Choosing $\alpha$: time-block cross-validation.}
+Each fold has a single training flight, so there is no second flight to
+validate on. We therefore cut the training flight into 5 contiguous time
+blocks. For each $\alpha$, each block is scored by a model trained on the other
+four, and training windows within 16 windows (4\,s, twice the window length)
+of the scored block are dropped, so no training window shares an IMU sample
+with a scored one (\texttt{tuning.py}). A random $k$-fold split would instead
+put overlapping neighbours on both sides and reward memorisation.
+
+\paragraph{The median rule.}
+The usual rule picks the $\alpha$ with the lowest \emph{mean} error over the
+blocks. Here that fails: the first block of each flight is the take-off, where
+the drift is lower and its standard deviation 3--5$\times$ larger than in the
+rest of the flight (Figure~\ref{fig:cv-blocks}). When that block is scored, the
+model has seen no take-off at all; for Lasso trained on MH\_01 it misses by
+9--17\,cm, while the other blocks are at 2--5\,cm.
+That one block dominates the mean, and the mean is smallest at large $\alpha$,
+i.e.\ close to predicting the average. The final model is trained on the whole
+flight, take-off included, so that block's score is unrepresentative. We
+therefore pick the $\alpha$ with the lowest \emph{median} block error, then refit
+on the whole training flight and score the test flight once.
+Section~\ref{sec:tuning-results} checks this choice.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{../../figures/ml/cv_blocks_MH_01_easy.png}
+\caption{The training flight MH\_01\_easy cut into the 5 time blocks used to
+choose $\alpha$. Block~0 contains the take-off, where the drift dips to about
+1.0\,m and varies far more than in blocks~1--4.}
+\label{fig:cv-blocks}
+\end{figure}
+
+\paragraph{Metrics.}
+On the held-out flight we report mean absolute error (MAE), root mean squared
+error (RMSE), bias $= \overline{\hat{y} - y}$, and
+$R^2 = 1 - \sum_i (y_i - \hat{y}_i)^2 / \sum_i (y_i - \bar{y})^2$.
+$R^2 = 0$ means no better than knowing the \emph{test} flight's mean; the mean
+baseline uses the \emph{training} mean, so its $R^2$ is slightly negative.
+Training MAE is reported as well, to measure over-fitting.
