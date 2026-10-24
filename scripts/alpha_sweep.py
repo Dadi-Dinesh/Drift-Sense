@@ -34,13 +34,10 @@ from vio_drift.data.splits import load_splits
 from vio_drift.evaluation.metrics import score
 from vio_drift.features.build_features import feature_names
 from vio_drift.models.ml.data import fold_frames, load_dataset
-from vio_drift.models.ml.models import build_lasso, build_ridge
+from vio_drift.models.ml.models import MODELS
 
-ALPHAS = {
-    "ridge": np.logspace(-3, 5, 17),
-    "lasso": np.logspace(-6, -1, 16),
-}
-BUILDERS = {"ridge": build_ridge, "lasso": build_lasso}
+ALPHAS = {name: MODELS[name].alphas for name in ("ridge", "lasso")}
+BUILDERS = {name: MODELS[name].build for name in ALPHAS}
 
 
 def plot_sweep(sweep: pd.DataFrame, model: str, path: Path) -> None:

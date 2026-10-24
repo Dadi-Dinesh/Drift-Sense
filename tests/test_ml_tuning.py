@@ -13,7 +13,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from vio_drift.models.ml.models import build_lasso, build_ridge
-from vio_drift.models.ml.tuning import time_block_splits, tune_alpha
+from vio_drift.models.ml.tuning import median_rule, time_block_splits, tune_alpha
 
 
 def test_blocks_are_contiguous_and_cover_every_row_once():
@@ -63,3 +63,25 @@ def test_tune_alpha_works_for_ridge():
     X, y = _toy()
     result = tune_alpha(build_ridge, [0.1, 10.0, 1e6], X, y, n_blocks=5, gap_windows=4)
     assert result.best_alpha < 1e6
+
+
+def test_median_rule_ignores_one_unrepresentative_block():
+    # block_0 (think take-off) is awful for small alpha and dominates the mean;
+    # the other four blocks all prefer the small alpha.
+    table = pd.DataFrame({
+        "alpha":   [0.001, 0.1],
+        "block_0": [0.20, 0.09],
+        "block_1": [0.02, 0.04],
+        "block_2": [0.02, 0.04],
+        "block_3": [0.02, 0.04],
+        "block_4": [0.02, 0.04],
+    })
+    assert median_rule(table) == 0.001
+
+
+def test_tune_alpha_reports_the_median_pick():
+    X, y = _toy()
+    alphas = [1e-4, 1e-3, 1e-2, 1e-1, 1.0]
+    result = tune_alpha(build_lasso, alphas, X, y, n_blocks=5, gap_windows=4)
+    assert result.median_alpha in alphas
+    assert result.median_alpha < 1.0

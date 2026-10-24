@@ -2,7 +2,7 @@
 Diagnostic: which alpha does time-block CV pick, and is it a good one?
 
 For each fold, model (Ridge, Lasso), number of blocks and picking rule
-(best / 1-SE), tune alpha on the training flight only, refit on the whole
+(median / best / 1-SE), tune alpha on the training flight only, refit on the whole
 training flight, and score the held-out flight. Comparing these held-out
 scores with scripts/alpha_sweep.py shows whether the CV choice lands near
 the bottom of the true curve. Used once to choose the tuning setup, not
@@ -29,13 +29,10 @@ from vio_drift.data.splits import load_splits
 from vio_drift.evaluation.metrics import score
 from vio_drift.features.build_features import feature_names
 from vio_drift.models.ml.data import fold_frames, load_dataset
-from vio_drift.models.ml.models import build_lasso, build_ridge
+from vio_drift.models.ml.models import MODELS
 from vio_drift.models.ml.tuning import tune_alpha
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from alpha_sweep import ALPHAS  # noqa: E402  same grids as the sweep
-
-BUILDERS = {"ridge": build_ridge, "lasso": build_lasso}
+TUNED = ("ridge", "lasso")
 BLOCK_COUNTS = [3, 5, 8, 10]
 
 
@@ -53,11 +50,14 @@ def main() -> None:
     rows = []
     for fold in load_splits(processed / "splits.json"):
         train, test = fold_frames(df, fold)
-        for model, build in BUILDERS.items():
+        for model in TUNED:
+            build = MODELS[model].build
             for n_blocks in BLOCK_COUNTS:
-                result = tune_alpha(build, list(ALPHAS[model]), train[features],
+                result = tune_alpha(build, MODELS[model].alphas, train[features],
                                     train[args.target], n_blocks=n_blocks)
-                for rule, alpha in [("best", result.best_alpha), ("1se", result.one_se_alpha)]:
+                for rule, alpha in [("median", result.median_alpha),
+                                    ("best", result.best_alpha),
+                                    ("1se", result.one_se_alpha)]:
                     with warnings.catch_warnings():
                         warnings.simplefilter("ignore")
                         fitted = build(alpha).fit(train[features], train[args.target])
@@ -68,7 +68,7 @@ def main() -> None:
     out_df = pd.DataFrame(rows)
     out = root / "results" / "diagnostics" / f"tuning_check_{args.target}.csv"
     out_df.to_csv(out, index=False)
-    for model in BUILDERS:
+    for model in TUNED:
         t = out_df[out_df["model"] == model].pivot_table(
             index=["n_blocks", "rule"], columns="test_seq", values=["alpha", "test_mae", "test_r2"])
         print(f"\n{model}\n{t.to_string(float_format=lambda v: f'{v:.4g}')}")

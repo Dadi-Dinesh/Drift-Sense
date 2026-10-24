@@ -9,10 +9,19 @@ training ones; blocks keep scored and training windows apart in time, and
 ``gap_windows`` rows either side of the scored block are dropped from
 training so none of them share IMU samples.
 
-Two picking rules are reported:
+Three picking rules are reported:
+  median_alpha  lowest *median* block MAE — the rule Part D uses
   best_alpha    lowest mean CV MAE
   one_se_alpha  the largest (most regularised) alpha whose mean CV MAE is
                 within one standard error of the best — the 1-SE rule
+
+The median rule is used because the first block of each flight is the
+take-off: drift there is lower and 3-4x more variable than in the rest of
+the flight. When that block is scored, the model has seen no take-off at
+all and misses by 10+ cm, so it dominates the mean and drives the mean and
+1-SE rules towards "predict the average" (huge alpha). The final model is
+trained on the whole flight, take-off included, so that block's score is
+unrepresentative; the median lets the other blocks decide.
 """
 from __future__ import annotations
 
@@ -32,6 +41,7 @@ GAP_WINDOWS = 16
 
 @dataclass
 class TuningResult:
+    median_alpha: float
     best_alpha: float
     one_se_alpha: float
     cv_table: pd.DataFrame      # alpha, mean_mae, se_mae, one column per block
@@ -58,6 +68,12 @@ def time_block_splits(
     return splits
 
 
+def median_rule(cv_table: pd.DataFrame) -> float:
+    """The alpha with the lowest median MAE across the ``block_*`` columns."""
+    medians = cv_table.filter(like="block_").median(axis=1)
+    return float(cv_table.loc[medians.idxmin(), "alpha"])
+
+
 def tune_alpha(
     build: Callable[[float], BaseEstimator],
     alphas: list[float],
@@ -66,7 +82,7 @@ def tune_alpha(
     n_blocks: int = 5,
     gap_windows: int = GAP_WINDOWS,
 ) -> TuningResult:
-    """Time-block CV MAE for every ``alpha``; returns both picking rules."""
+    """Time-block CV MAE for every ``alpha``; returns all three picking rules."""
     y = np.asarray(y)
     splits = time_block_splits(len(X), n_blocks, gap_windows)
     rows = []
@@ -85,6 +101,7 @@ def tune_alpha(
 
     best = table.loc[table["mean_mae"].idxmin()]
     within = table[table["mean_mae"] <= best["mean_mae"] + best["se_mae"]]
-    return TuningResult(best_alpha=float(best["alpha"]),
+    return TuningResult(median_alpha=median_rule(table),
+                        best_alpha=float(best["alpha"]),
                         one_se_alpha=float(within["alpha"].max()),
                         cv_table=table)

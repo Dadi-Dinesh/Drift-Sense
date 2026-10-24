@@ -35,21 +35,21 @@ def test_score_matches_sklearn():
 
 def test_mean_baseline_predicts_training_mean():
     X, y = _toy()
-    model = MODELS["mean"]().fit(X, y)
+    model = MODELS["mean"].build().fit(X, y)
     assert np.allclose(model.predict(X), y.mean())
 
 
 def test_ols_learns_a_linear_target_and_beats_the_mean():
     X, y = _toy()
-    ols = MODELS["ols"]().fit(X[:150], y[:150])
-    mean = MODELS["mean"]().fit(X[:150], y[:150])
+    ols = MODELS["ols"].build().fit(X[:150], y[:150])
+    mean = MODELS["mean"].build().fit(X[:150], y[:150])
     assert score(y[150:], ols.predict(X[150:]))["r2"] > 0.9
     assert score(y[150:], mean.predict(X[150:]))["r2"] < 0.05
 
 
 def test_ols_scaler_is_fit_on_training_rows_only():
     X, y = _toy()
-    ols = MODELS["ols"]().fit(X[:150], y[:150])
+    ols = MODELS["ols"].build().fit(X[:150], y[:150])
     scaler = ols.named_steps["scale"]
     assert np.allclose(scaler.mean_, X[:150].mean().to_numpy())
 
