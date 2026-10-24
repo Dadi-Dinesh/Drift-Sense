@@ -13,7 +13,7 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from vio_drift.evaluation.metrics import score
-from vio_drift.models.ml.models import MODELS
+from vio_drift.models.ml.models import MODELS, build_lasso, build_ridge
 
 
 def _toy(n: int = 200, seed: int = 0):
@@ -52,3 +52,23 @@ def test_ols_scaler_is_fit_on_training_rows_only():
     ols = MODELS["ols"]().fit(X[:150], y[:150])
     scaler = ols.named_steps["scale"]
     assert np.allclose(scaler.mean_, X[:150].mean().to_numpy())
+
+
+def test_ridge_weights_shrink_as_alpha_grows():
+    X, y = _toy()
+    small = build_ridge(alpha=0.01).fit(X, y).named_steps["model"].coef_
+    large = build_ridge(alpha=1e4).fit(X, y).named_steps["model"].coef_
+    assert np.abs(large).sum() < np.abs(small).sum()
+
+
+def test_lasso_drops_useless_features():
+    X, y = _toy()
+    coef = build_lasso(alpha=0.005).fit(X, y).named_steps["model"].coef_
+    assert coef[0] != 0                     # "a" drives the target
+    assert np.all(coef[1:] == 0)            # "b", "c", "d" are noise
+
+
+def test_lasso_with_huge_alpha_predicts_the_mean():
+    X, y = _toy()
+    model = build_lasso(alpha=10.0).fit(X, y)
+    assert np.allclose(model.predict(X), y.mean())
