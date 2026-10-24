@@ -50,17 +50,3 @@ def test_primary_target_is_raw_magnitude():
     data = _splits()
     assert data["primary_target"] == "err_mag_m"
 
-
-def test_chronological_split_leaves_no_overlapping_windows():
-    import sys
-    import numpy as np
-    import pandas as pd
-    sys.path.insert(0, str(ROOT / "src"))
-    from vio_drift.models.ml.data import chronological_split
-
-    window_ns, stride_ns = int(1.0e9), int(0.25e9)
-    flight = pd.DataFrame({"t_start_ns": np.arange(400) * stride_ns})
-    train, test = chronological_split(flight, train_frac=0.6, gap_windows=8)
-    assert len(train) + len(test) + 8 == len(flight)
-    # the last training window must end before the first test window starts
-    assert train["t_start_ns"].max() + window_ns <= test["t_start_ns"].min()

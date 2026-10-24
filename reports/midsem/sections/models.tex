@@ -1,112 +1,14 @@
 % Models section (Part D, Milestone 5)
 % Include from reports/midsem/main.tex.
 %
-% Describes the models in src/vio_drift/models/ml/ and the evaluation
-% protocol in tuning.py / splits.json. Hyperparameter grids are the
-% PARAM_GRID constants in baselines.py and random_forest.py; chosen
-% values are in results/metrics/err_mag_m_tuning.csv.
+% Part D is being rebuilt from scratch; this section will be rewritten.
 
 \section{Models}
 \label{sec:models}
 
-Every model maps a window's feature vector $\mathbf{x} \in \mathbb{R}^{104}$
-(Section~\ref{sec:feature-engineering}) to a predicted drift $\hat{y}$, the
-1\,s position error \texttt{err\_mag\_m} in metres. We compare a mean baseline,
-three linear models (OLS, Ridge and Lasso) and one non-linear model, a Random
-Forest. All
-hyperparameters are chosen by grid search (Section~\ref{sec:protocol}).
+% TODO: models, tuning and evaluation protocol.
 
-\subsection{Baseline and linear models}
+\subsection{Physics feature: the drift a calibrated bias explains}
+\label{sec:physics-feature}
 
-\paragraph{Mean baseline.}
-Predict the average training label for every window,
-$\hat{y} = \bar{y}_{\text{train}}$. It ignores the features entirely, so any
-model that cannot beat it has learned nothing that transfers to a new flight.
-
-\paragraph{Linear regression (OLS).}
-Ordinary least squares: the linear model $\hat{y} = \mathbf{w}^\top \mathbf{x} + b$
-that minimises the squared training error
-$\sum_{i} (y_i - \mathbf{w}^\top \mathbf{x}_i - b)^2$, with nothing to tune.
-It is the unregularised reference for Ridge: comparing the two measures what
-Ridge's penalty buys rather than assuming it
-(Section~\ref{sec:overfitting}).
-
-\paragraph{Ridge regression.}
-The same linear model, fitted by minimising
-\begin{equation}
-  \sum_{i} \bigl(y_i - \mathbf{w}^\top \mathbf{x}_i - b\bigr)^2
-  + \alpha \lVert \mathbf{w} \rVert^2 .
-\end{equation}
-The penalty $\alpha \lVert \mathbf{w} \rVert^2$ shrinks the weights. It is
-needed here because many features are near-duplicates (e.g.\ variance is the
-square of standard deviation; 17 feature pairs have $|r| > 0.95$): without it,
-a least-squares fit would give such pairs large weights of opposite sign that
-cancel on the training data and blow up on new data (as OLS does,
-Section~\ref{sec:overfitting}). Features are standardised
-(zero mean, unit variance) first, so the penalty treats every feature equally.
-We tune $\alpha \in \{10^{-2}, 10^{-1}, \dots, 10^{5}\}$ (8 values).
-
-\paragraph{Lasso regression.}
-The same model with an L1 penalty instead,
-\begin{equation}
-  \frac{1}{2n}\sum_{i} \bigl(y_i - \mathbf{w}^\top \mathbf{x}_i - b\bigr)^2
-  + \alpha \lVert \mathbf{w} \rVert_1 ,
-  \qquad \lVert \mathbf{w} \rVert_1 = \textstyle\sum_j |w_j| .
-\end{equation}
-L2 shrinks every weight a little; L1 pushes weak weights to \emph{exactly} zero,
-so Lasso also selects features. With redundant features this is a natural fit:
-from a group of near-duplicates it tends to keep one. The useful range of
-$\alpha$ is small because the label's spread is only about $0.015$\,m; we tune
-$\alpha \in \{10^{-6}, 10^{-5}, \dots, 10^{-1}\}$ (6 values).
-
-\subsection{Random Forest}
-
-A \emph{regression tree} recursively splits the data with yes/no questions on
-one feature at a time (``is \texttt{ax\_rms} $> 9.6$?''). At each node it picks
-the feature and threshold that most reduce the squared error of the label in
-the two resulting groups, and a leaf predicts the mean label of the training
-windows that reach it. A single deep tree fits noise. A \emph{Random Forest}
-\cite{breiman2001random} averages $B$ trees,
-\begin{equation}
-  \hat{y}(\mathbf{x}) = \frac{1}{B} \sum_{b=1}^{B} T_b(\mathbf{x}),
-\end{equation}
-where each tree $T_b$ is trained on a bootstrap resample of the windows and
-considers only a random subset of features at each split. These two sources of
-randomness make the trees' errors less correlated, so averaging them cuts
-variance while keeping each tree's low bias.
-
-Trees depend only on the \emph{order} of a feature's values, so no scaling is
-needed. We use $B = 300$ trees and tune the maximum depth
-($\{\text{none}, 4, 8\}$), the minimum windows per leaf ($\{1, 5, 20\}$) and the
-number of features tried per split (all $p = 104$, $\sqrt{p}$, or $0.3p$): 27
-combinations. Shallow trees with large leaves are the forest's main defence
-against over-fitting on our small data set.
-
-\subsection{Evaluation protocol}
-\label{sec:protocol}
-
-Windows overlap by 75\% (1\,s length, 0.25\,s stride), so neighbouring windows
-are nearly identical. A random train/test split would therefore score a model
-on near-copies of its training windows. We split by \emph{sequence}
-instead, using \emph{nested} leave-one-sequence-out (LOSO) cross-validation:
-\begin{itemize}
-  \item \textbf{Outer loop} (\texttt{splits.json}): three folds, each training on
-        two sequences and testing on the third. Only these held-out scores
-        are reported.
-  \item \textbf{Inner loop} (\texttt{tuning.py}): within a fold's two training
-        sequences, each hyperparameter combination is trained on one sequence
-        and scored on the other, both ways. The best combination by mean
-        absolute error is refit on both and then scored once on the outer
-        test sequence.
-\end{itemize}
-Every scaler sits inside its model's pipeline, so it is fit on training
-windows only. Notebook~05 verifies this for each fold: each saved scaler's mean
-equals the training-sequence mean, not the pooled mean. As a further control,
-a Random Forest trained on \emph{shuffled} labels does no better than the mean
-baseline on held-out data.
-
-We report mean absolute error (MAE), root mean squared error (RMSE), and
-$R^2 = 1 - \sum_i (y_i - \hat{y}_i)^2 / \sum_i (y_i - \bar{y})^2$ computed on the
-held-out sequence. $R^2 = 0$ means no better than knowing the
-\emph{test} sequence's mean. The mean baseline uses the \emph{training} mean,
-so its $R^2$ is slightly negative.
+% TODO: describe features/physics.py (per-fold bias from the training flight).
