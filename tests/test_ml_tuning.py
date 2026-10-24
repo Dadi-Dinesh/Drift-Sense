@@ -12,7 +12,8 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from vio_drift.models.ml.models import build_lasso, build_ridge
+from vio_drift.models.ml.models import MODELS, build_lasso, build_ridge
+from vio_drift.models.ml.train import fit_model
 from vio_drift.models.ml.tuning import median_rule, time_block_splits, tune_alpha
 
 
@@ -85,3 +86,13 @@ def test_tune_alpha_reports_the_median_pick():
     result = tune_alpha(build_lasso, alphas, X, y, n_blocks=5, gap_windows=4)
     assert result.median_alpha in alphas
     assert result.median_alpha < 1.0
+
+
+def test_fit_model_tunes_only_models_with_a_grid():
+    X, y = _toy()
+    ols = fit_model("ols", X, y, gap_windows=4)
+    assert ols.alpha is None and ols.cv_table is None
+    lasso = fit_model("lasso", X, y, gap_windows=4)
+    assert lasso.alpha in MODELS["lasso"].alphas
+    assert lasso.model.named_steps["model"].alpha == lasso.alpha
+    assert len(lasso.model.predict(X)) == len(y)

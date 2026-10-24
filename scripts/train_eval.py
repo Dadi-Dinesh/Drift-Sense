@@ -22,7 +22,6 @@ from __future__ import annotations
 
 import argparse
 import sys
-import warnings
 from pathlib import Path
 
 import pandas as pd
@@ -35,7 +34,7 @@ from vio_drift.evaluation.metrics import score
 from vio_drift.features.build_features import feature_names
 from vio_drift.models.ml.data import fold_frames, load_dataset
 from vio_drift.models.ml.models import MODELS
-from vio_drift.models.ml.tuning import tune_alpha
+from vio_drift.models.ml.train import fit_model
 
 
 def main() -> None:
@@ -53,18 +52,11 @@ def main() -> None:
     for fold in load_splits(processed / "splits.json"):
         train, test = fold_frames(df, fold)
         X, y = train[features], train[args.target]
-        for name, spec in MODELS.items():
-            alpha = None
-            if spec.alphas is None:
-                model = spec.build()
-            else:
-                tuned = tune_alpha(spec.build, spec.alphas, X, y)
-                alpha = tuned.median_alpha
-                model = spec.build(alpha)
-                cv_tables.append(tuned.cv_table.assign(model=name, fold_id=fold.fold_id))
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")     # Lasso convergence at tiny alpha
-                model.fit(X, y)
+        for name in MODELS:
+            fitted = fit_model(name, X, y)
+            model, alpha = fitted.model, fitted.alpha
+            if fitted.cv_table is not None:
+                cv_tables.append(fitted.cv_table.assign(model=name, fold_id=fold.fold_id))
             rows.append({
                 "model": name,
                 "fold_id": fold.fold_id,
