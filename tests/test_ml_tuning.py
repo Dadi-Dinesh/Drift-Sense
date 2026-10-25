@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from vio_drift.models.ml.models import MODELS, build_lasso, build_ridge
 from vio_drift.models.ml.train import fit_model
-from vio_drift.models.ml.tuning import median_rule, time_block_splits, tune_alpha
+from vio_drift.models.ml.tuning import median_rule, time_block_splits, tune_alpha, tune_alpha_by_flight
 
 
 def test_blocks_are_contiguous_and_cover_every_row_once():
@@ -96,3 +96,19 @@ def test_fit_model_tunes_only_models_with_a_grid():
     assert lasso.alpha in MODELS["lasso"].alphas
     assert lasso.model.named_steps["model"].alpha == lasso.alpha
     assert len(lasso.model.predict(X)) == len(y)
+
+
+def test_tune_alpha_by_flight_scores_each_flight_on_a_model_from_the_other():
+    X, y = _toy(n=300)
+    groups = np.repeat(["A", "B"], 150)
+    alphas = [1e-3, 1.0]
+    result = tune_alpha_by_flight(build_lasso, alphas, X, y, groups)
+    assert result.best_alpha == 1e-3                 # alpha=1 zeroes every weight
+    assert list(result.cv_table["alpha"]) == alphas
+    assert {"flight_A", "flight_B"} <= set(result.cv_table.columns)
+
+
+def test_tune_alpha_by_flight_needs_two_flights():
+    X, y = _toy()
+    with pytest.raises(ValueError):
+        tune_alpha_by_flight(build_lasso, [1e-3], X, y, np.full(len(y), "A"))
