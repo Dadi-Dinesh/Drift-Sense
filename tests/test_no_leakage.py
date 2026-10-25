@@ -49,3 +49,4 @@ def test_each_sequence_is_held_out_exactly_once():
 def test_primary_target_is_raw_magnitude():
     data = _splits()
     assert data["primary_target"] == "err_mag_m"
+

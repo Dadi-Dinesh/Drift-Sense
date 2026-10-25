@@ -25,9 +25,11 @@ where ground-truth coverage is sparser than IMU coverage.
 
 \subsubsection{Windowing}
 The aligned stream is divided into overlapping windows of
-$T_w = 1.0\,\mathrm{s}$ (200 IMU samples at 200\,Hz), with a stride of
+$T_w = 2.0\,\mathrm{s}$ (400 IMU samples at 200\,Hz), with a stride of
 $T_s = 0.25\,\mathrm{s}$ between consecutive window starts. This yielded
-724 and 596 windows for MH\_01\_easy and MH\_02\_easy respectively.
+720 and 592 windows for MH\_01\_easy and MH\_02\_easy respectively.
+An earlier version used $T_w = 1\,\mathrm{s}$;
+Section~\ref{sec:window-length} shows why the longer window was adopted.
 
 \subsubsection{IMU Strapdown Integration}
 For each window, we compute a model-free position estimate by
@@ -68,10 +70,11 @@ timestamp and the true position $p_{\text{end}}$ from ground truth:
 The signed per-axis error $(\Delta x, \Delta y, \Delta z)$ is retained
 alongside the scalar magnitude for use in the Phase 2 trajectory
 correction step and as additional Phase 1 regression targets. Across the
-two sequences, mean 1-second-window \emph{raw}-IMU drift was 0.186\,m on
-both, with maximum single-window error of 0.22\,m (MH\_01\_easy). After
-oracle bias subtraction the same 1\,s windows have mean residual
-0.021\,m (MH\_01) and 0.018\,m (MH\_02).
+two sequences, mean 2-second-window \emph{raw}-IMU drift was 1.215\,m
+(MH\_01) and 1.203\,m (MH\_02), with maximum single-window error of
+1.34\,m (MH\_01\_easy). After oracle bias subtraction the same 2\,s
+windows have mean residual 0.063\,m (MH\_01) and 0.054\,m (MH\_02), so
+roughly 95\% of the raw drift is integrated IMU bias.
 
 The same windows are also integrated after subtracting the dataset's
 ground-truth IMU bias estimates. The resulting columns

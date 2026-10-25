@@ -10,7 +10,7 @@ data:
     - "MH_02_easy"
 
 windowing:
-  window_seconds: 1.0     # length of each window
+  window_seconds: 2.0     # length of each window (was 1.0; 2 s makes the label far more predictable — see results/diagnostics/window_length_ceiling.csv)
   stride_seconds: 0.25    # how far the window slides each step
   imu_rate_hz: 200         # EuRoC IMU nominal rate; used only as a sanity check
 

@@ -10,7 +10,7 @@ Phase~1 uses two Machine Hall sequences from the EuRoC MAV dataset
 few minutes of a real hexacopter with a stereo camera and an ADIS16448
 IMU. We use only \texttt{imu0/data.csv} (gyroscope in rad/s,
 accelerometer specific force in m/s$^2$, nominally 200\,Hz) and
-\texttt{state\_groundtruth\_estimate0/data.csv} (position, Hamilton
+\texttt{state\_groundtruth\_estimate0/\allowbreak data.csv} (position, Hamilton
 quaternion, velocity, and IMU biases). Camera images are reserved for
 Phase~2. MH\_03\_medium is not used in this phase.
 
@@ -23,7 +23,7 @@ jitter. Nearest-timestamp alignment drops 1.17\% and 1.32\% of IMU rows
 coverage starts later than the IMU. We treat those drops as coverage
 gaps, not sensor faults.
 
-\begin{table}[t]
+\begin{table}[htbp]
 \centering
 \caption{Sequence-level quality checks.}
 \label{tab:quality}
@@ -53,15 +53,15 @@ and different enough (duration, path) that holding one out is still
 meaningful.
 
 \subsection{Drift label}
-The headline target is the 1\,s raw-IMU position error $y=\texttt{err\_mag\_m}$.
-Across 724 and 596 overlapping windows the means are both 0.186\,m, with
-standard deviations 0.012\,m and 0.013\,m. The histograms are tight and
-slightly left-skewed. We therefore \textbf{do not} log-transform the
-primary target.
+The headline target is the 2\,s raw-IMU position error $y=\texttt{err\_mag\_m}$.
+Across 720 and 592 overlapping windows the means are 1.215 and 1.203\,m
+with standard deviations 0.058 and 0.079\,m. The histograms are tight and
+left-skewed (skew $-1.7$, $-2.1$; max 1.34\,m). We therefore
+\textbf{do not} log-transform the primary target.
 
 The same windows after subtracting the dataset's ground-truth IMU biases
-(\texttt{err\_mag\_m\_bc}) have means 0.021\,m and 0.018\,m. This
-supports the claim that 1\,s raw drift is bias-dominated; the
+(\texttt{err\_mag\_m\_bc}) have means 0.063 and 0.054\,m. This
+supports the claim that 2\,s raw drift is bias-dominated; the
 bias-corrected series is an oracle comparison, not the leaderboard
 target. Signed axis errors $({\Delta}x,{\Delta}y,{\Delta}z)$ vary more
 than the Euclidean magnitude, so Phase~1 models should also be trained
@@ -69,11 +69,12 @@ on the 3-axis target.
 
 Mean error versus window length (0.25--2.0\,s) grows superlinearly for
 the raw integrator ($\sim$6\,mm at 0.25\,s to $\sim$1.2\,m at 2\,s) and
-remains much smaller after bias correction. The primary window stays
-1.0\,s / 0.25\,s stride as specified.
+remains much smaller after bias correction. The primary window was
+changed from 1.0\,s to 2.0\,s (0.25\,s stride) because the longer label is
+far more predictable (Section~\ref{sec:window-length}).
 
 \subsection{Train/test protocol}
-Windows overlap by 75\%. A random split of rows would place nearly
+Windows overlap by 87.5\%. A random split of rows would place nearly
 identical IMU slices in both train and test and inflate $R^2$. With two
 sequences we still use leave-one-sequence-out, recorded in
 \texttt{data/processed/splits.json}: train on MH\_02 and test on MH\_01,
