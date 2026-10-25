@@ -16,12 +16,16 @@ Three picking rules are reported:
                 within one standard error of the best — the 1-SE rule
 
 The median rule is used because the first block of each flight is the
-take-off: drift there is lower and 3-4x more variable than in the rest of
+take-off: drift there is lower and 3-5x more variable than in the rest of
 the flight. When that block is scored, the model has seen no take-off at
 all and misses by 10+ cm, so it dominates the mean and drives the mean and
 1-SE rules towards "predict the average" (huge alpha). The final model is
 trained on the whole flight, take-off included, so that block's score is
 unrepresentative; the median lets the other blocks decide.
+
+``tune_alpha_by_flight`` is for the final model trained on *both* flights:
+there each flight can be held out in turn, so alpha is chosen by
+leave-one-flight-out CV (mean MAE over the two held-out flights).
 """
 from __future__ import annotations
 
@@ -105,3 +109,36 @@ def tune_alpha(
                         best_alpha=float(best["alpha"]),
                         one_se_alpha=float(within["alpha"].max()),
                         cv_table=table)
+
+
+@dataclass
+class FlightTuningResult:
+    best_alpha: float
+    cv_table: pd.DataFrame      # alpha, mean_mae, one column per held-out flight
+
+
+def tune_alpha_by_flight(
+    build: Callable[[float], BaseEstimator],
+    alphas: list[float],
+    X: pd.DataFrame,
+    y: np.ndarray,
+    groups: np.ndarray,
+) -> FlightTuningResult:
+    """Leave-one-flight-out CV MAE for every ``alpha``; picks the lowest mean."""
+    y, groups = np.asarray(y), np.asarray(groups)
+    flights = list(dict.fromkeys(groups))
+    if len(flights) < 2:
+        raise ValueError(f"need at least two flights, got {flights}")
+    rows = []
+    for alpha in alphas:
+        maes = {}
+        for flight in flights:
+            held = groups == flight
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")     # Lasso convergence at tiny alpha
+                model = build(alpha).fit(X[~held], y[~held])
+            maes[f"flight_{flight}"] = mean_absolute_error(y[held], model.predict(X[held]))
+        rows.append({"alpha": alpha, "mean_mae": float(np.mean(list(maes.values()))), **maes})
+    table = pd.DataFrame(rows)
+    return FlightTuningResult(best_alpha=float(table.loc[table["mean_mae"].idxmin(), "alpha"]),
+                              cv_table=table)
