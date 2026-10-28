@@ -12,12 +12,12 @@
   "alpha": 0.004641588833612777,
   "alpha_choice": "lowest mean leave-one-flight-out MAE over the Lasso grid in models.py",
   "cv_mae_by_held_out_flight": {
-    "MH_01_easy": 0.025140170411516918,
-    "MH_02_easy": 0.023683555376898206
+    "MH_01_easy": 0.025140170411516907,
+    "MH_02_easy": 0.023683555376898216
   },
   "cv_note": "alpha was chosen to minimise these CV scores, so they are slightly optimistic; the unbiased held-out estimate is Lasso's mean MAE in results/metrics/<target>.csv (scripts/train_eval.py)",
-  "train_mae": 0.023201704751144265,
-  "train_r2": 0.8052501913715014,
+  "train_mae": 0.02320170475114429,
+  "train_r2": 0.8052501913715017,
   "n_features_in": 104,
   "n_features_kept": 7,
   "features_kept": [
@@ -135,7 +135,7 @@
     "corr_ax_az",
     "corr_ay_az"
   ],
-  "python": "3.12.5",
+  "python": "3.11.16",
   "sklearn": "1.9.1",
   "numpy": "2.4.6"
 }
