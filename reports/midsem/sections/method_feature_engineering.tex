@@ -27,10 +27,11 @@ the integrator must contend with; the shape terms (skewness, kurtosis) flag
 asymmetric or spike-laden windows; and the zero-crossing rate, computed about
 each channel's own mean so the accelerometer gravity offset does not dominate,
 is a cheap proxy for oscillation frequency. This family contains the single
-strongest linear correlates of the label, the accelerometer $x$- and
-$z$-axis means and RMS ($|r| \approx 0.87$--$0.88$), and supplies the
-top-ranked features under a RandomForest importance analysis
-(\texttt{az\_mean}, \texttt{az\_rms}). The accelerometer means mostly encode
+strongest linear correlates of the label, the accelerometer $x$-axis mean
+and RMS ($|r| \approx 0.67$), followed by the $z$-axis mean and RMS
+($|r| \approx 0.54$), and supplies the top-ranked features under a
+RandomForest importance analysis (\texttt{ax\_mean}, \texttt{ax\_rms}).
+The accelerometer means mostly encode
 the window's tilt against gravity, which sets how the IMU bias projects into
 the world frame (Section~\ref{sec:physics-feature}).
 
@@ -43,7 +44,7 @@ essential: without it the accelerometer's large gravity/DC term would be read
 as a spurious $0\,\mathrm{Hz}$ peak. Spectral entropy distinguishes clean,
 tonal motion (energy in one band) from broadband, noise-like windows; the
 per-axis spectral-entropy features are among the strongest label correlates
-($|r| \approx 0.35$--$0.74$, highest for the accelerometer), consistent with
+($|r| \approx 0.47$--$0.52$ for the accelerometer), consistent with
 noise-like windows drifting more than smoothly manoeuvring ones.
 
 \subsubsection{Cross-axis and magnitude features (26)}
@@ -57,9 +58,9 @@ target abrupt changes, which are precisely where discrete strapdown
 integration between samples is least accurate. Finally, the fifteen pairwise
 Pearson \emph{correlations} between channels describe coordinated motion:
 strong cross-axis correlation is the signature of a banking turn or climb
-rather than uncorrelated sensor noise, and several accelerometer--gyroscope
-cross terms (e.g.\ \texttt{corr\_gz\_ax}) rank highly under RandomForest
-importance.
+rather than uncorrelated sensor noise. On the 2\,s windows the
+accelerometer pair \texttt{corr\_ax\_az} appears in the RandomForest ranking;
+accel--gyro cross terms are weaker than the accel means and RMS.
 
 \subsubsection{Scaling and the no-leakage constraint}
 Because the project splits by sequence (leave-one-sequence-out,

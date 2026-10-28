@@ -44,7 +44,7 @@ python scripts/make_windows.py
 Produces, per sequence, in `data/processed/`:
 - `windows_<seq>.csv` — ids, timestamps, raw drift (`err_mag_m`, `err_dx/dy/dz`)
   and oracle bias-corrected copies (`err_*_bc`)
-- `windows_raw_<seq>.npy` — raw IMU arrays, shape (N_windows, 200, 6)
+- `windows_raw_<seq>.npy` — raw IMU arrays, shape (N_windows, 400, 6) for the 2.0 s windows (720 on MH_01_easy, 592 on MH_02_easy)
 
 ```bash
 python scripts/window_length_diagnostic.py

@@ -1,10 +1,11 @@
 # Feature Dictionary (Part C)
 
 Every feature in `data/processed/features_<seq>.csv`, what it means in plain
-words, and why it might reveal drift. One window = 1.0 s of IMU data (200
+words, and why it might reveal drift. One window = **2.0 s** of IMU data (400
 samples × 6 channels). All features are computed per window by
 `src/vio_drift/features/`; the full list is produced by
-`build_features.feature_names()`.
+`build_features.feature_names()`. Rankings below are from the pooled
+MH_01_easy / MH_02_easy 2 s tables (notebook 04).
 
 **Total: 104 features** = 60 time-domain + 18 frequency-domain + 26 cross-axis.
 
@@ -26,7 +27,7 @@ builds our label) accumulates position error fastest when a window is
 energetic, erratic, or hard to integrate between samples. So features that
 measure *how much* and *how abruptly* the drone moved, and *how* its axes move
 together, are natural predictors of the drift that accumulated over that
-second.
+window.
 
 ---
 
@@ -37,13 +38,13 @@ in `{gx, gy, gz, ax, ay, az}`:
 
 | Feature | Meaning (plain words) | Why it might reveal drift |
 |---------|-----------------------|---------------------------|
-| `c_mean` | Average reading over the window. | For accel axes this tracks the gravity direction / sustained acceleration; a biased mean is exactly what double-integration turns into position error. `ax_mean` is the single strongest linear correlate of the label. |
+| `c_mean` | Average reading over the window. | For accel axes this tracks the gravity direction / sustained acceleration; a biased mean is exactly what double-integration turns into position error. `ax_mean` is tied with `ax_rms` as the strongest linear correlate of the 2 s label (|r| ≈ 0.67) and is the top RandomForest feature. |
 | `c_std` | Spread of the readings about their mean. | More variation = more motion and noise to integrate = more room for error to accumulate. |
 | `c_var` | Variance (std squared). | Same signal as `std`, on a squared scale; emphasises high-energy windows. |
-| `c_rms` | Root-mean-square: typical magnitude including any offset. | Combines "how big" and "how variable" into one energy-like number; `ax_rms` is the top RandomForest feature. |
+| `c_rms` | Root-mean-square: typical magnitude including any offset. | Combines "how big" and "how variable" into one energy-like number; `ax_rms` is tied with `ax_mean` for strongest linear correlate and is second under RandomForest. |
 | `c_min` | Smallest reading in the window. | Captures extremes (hard decelerations, sharp rotations) a mean would hide. |
 | `c_max` | Largest reading in the window. | Same, for the positive extreme. |
-| `c_ptp` | Peak-to-peak: `max − min`, the full swing. | A large swing within one second means violent motion that strapdown integration handles poorly. |
+| `c_ptp` | Peak-to-peak: `max − min`, the full swing. | A large swing within one window means violent motion that strapdown integration handles poorly. |
 | `c_skew` | Skewness: asymmetry of the value distribution. | A lopsided window (e.g. one strong push) integrates differently than a symmetric wobble. 0 for a flat channel. |
 | `c_kurt` | Excess kurtosis: how "peaky"/heavy-tailed the values are. | High kurtosis flags rare spikes (bumps, transients) that drive sudden error. 0 for a flat channel. |
 | `c_zcr` | Zero-crossing rate about the window **mean**: fraction of adjacent samples that change sign after the mean is removed. | A cheap frequency proxy — how often the signal oscillates. Fast oscillation = vibration/shake, which the integrator smooths over and mis-tracks. Mean-removed so the accel gravity offset does not dominate. |
@@ -60,7 +61,7 @@ term is not read as a 0 Hz "signal". Sampling rate `fs = 200 Hz`.
 |---------|-----------------------|---------------------------|
 | `c_dom_freq` | Frequency (Hz) of the strongest spectral peak (DC excluded). | Where the motion's energy sits. Low-frequency = smooth manoeuvres; high-frequency = vibration/noise, which integrates poorly. 0 Hz for a flat channel. |
 | `c_spec_energy` | Total AC power: summed power spectrum after mean removal. | A frequency-domain measure of how energetic the window is; complements time-domain `var`/`rms`. |
-| `c_spec_entropy` | Shannon entropy of the power spectrum, normalised to [0, 1]. | *How spread out* the energy is: near 0 = one clean tone (coordinated motion), near 1 = broadband (noise-like). The accel/gyro spectral-entropy features are among the strongest label correlates, suggesting noise-like windows drift more. |
+| `c_spec_entropy` | Shannon entropy of the power spectrum, normalised to [0, 1]. | *How spread out* the energy is: near 0 = one clean tone (coordinated motion), near 1 = broadband (noise-like). Accel spectral-entropy features are among the strongest label correlates (|r| ≈ 0.47–0.52), suggesting noise-like windows drift more. |
 
 ---
 
@@ -94,7 +95,7 @@ capture coupling the per-axis features miss, and are orientation-independent.
 
 | Feature | Meaning | Why it might reveal drift |
 |---------|---------|---------------------------|
-| `corr_<a>_<b>` | Pearson correlation between channels `a` and `b`, for all 15 unordered pairs of `{gx, gy, gz, ax, ay, az}` (e.g. `corr_gx_gy`, `corr_gz_ax`, `corr_ax_ay`). | *How* the axes move together. Strong cross-axis correlation is the signature of coordinated rigid-body motion (banking turns, climbs) rather than uncorrelated sensor noise. Several accel–gyro cross terms (e.g. `corr_gz_ax`) rank high in RandomForest importance. 0 when either channel is constant (correlation undefined). |
+| `corr_<a>_<b>` | Pearson correlation between channels `a` and `b`, for all 15 unordered pairs of `{gx, gy, gz, ax, ay, az}` (e.g. `corr_gx_gy`, `corr_ax_az`, `corr_ax_ay`). | *How* the axes move together. Strong cross-axis correlation is the signature of coordinated rigid-body motion (banking turns, climbs) rather than uncorrelated sensor noise. On 2 s windows `corr_ax_az` appears in the RandomForest ranking; accel–gyro cross terms are weaker than the accel means/RMS. 0 when either channel is constant (correlation undefined). |
 
 ---
 
@@ -115,3 +116,11 @@ two easy sequences (`MH_01_easy`, `MH_02_easy`), 22 feature pairs have |correlat
 and not a bug: tree models are insensitive to it, and `notebook 04` runs
 correlation and feature-selection experiments to show how a reduced feature
 set performs. See that notebook for the current ranking.
+
+## Physics features (not in the 104)
+
+`phys_dx`, `phys_dy`, `phys_dz`, `phys_mag` live in
+`data/processed/physics_<fold_id>.csv`. They are the position error a
+*training-flight* IMU-bias calibration would cause in that window. They
+are **not** columns of `features_<seq>.csv` and were not inputs to the
+mid-semester mean / OLS / Ridge / Lasso models.

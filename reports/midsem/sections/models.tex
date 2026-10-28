@@ -41,7 +41,7 @@ The same linear model, fitted by minimising
 \end{equation}
 The L2 penalty shrinks every weight towards zero. It is needed because many
 features are near-duplicates (variance is the square of standard deviation;
-25 feature pairs have $|r| > 0.95$ on the 2\,s windows): least squares can give such a pair large
+22 feature pairs have $|r| > 0.95$ on the 2\,s windows): least squares can give such a pair large
 weights of opposite sign that cancel on the training flight and fail on a new
 one. With 105 parameters and only 592--720 training windows, OLS has room to
 do exactly that. We search $\alpha$ over 17 values from $10^{-3}$ to $10^{5}$
