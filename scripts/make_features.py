@@ -2,7 +2,7 @@
 Part C pipeline: raw windows -> feature table, for one or all sequences.
 
 Reads Part A's handoff files from data/processed/:
-  windows_raw_<seq>.npy   (N, 200, 6)  gx,gy,gz,ax,ay,az
+  windows_raw_<seq>.npy   (N, 400, 6)  gx,gy,gz,ax,ay,az  (2.0 s windows)
   windows_<seq>.csv       for the err_mag_m label
 
 Writes, per sequence:
