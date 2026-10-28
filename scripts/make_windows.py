@@ -6,7 +6,7 @@ Produces, per sequence, in data/processed/:
   windows_<seq>.csv       (seq_id, window_id, t_start_ns, t_end_ns,
                             err_mag_m, err_dx, err_dy, err_dz,
                             err_mag_m_bc, err_dx_bc, err_dy_bc, err_dz_bc)
-  windows_raw_<seq>.npy   (N_windows, 200, 6) — gx,gy,gz,ax,ay,az  (always RAW)
+  windows_raw_<seq>.npy   (N_windows, 400, 6) — gx,gy,gz,ax,ay,az  (always RAW; 2.0 s @ 200 Hz)
 
 Usage:
     python scripts/make_windows.py

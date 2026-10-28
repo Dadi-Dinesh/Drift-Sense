@@ -17,9 +17,11 @@ If nothing is close enough (a gap), we drop that reading rather than pair
 it with a stale position — `align.py` prints how many rows this affected.
 
 ## 3. Window
-We cut the aligned stream into ~1-second chunks ("windows"), sliding
-forward by 0.25 seconds each time (so windows overlap). Each window is
-one training example.
+We cut the aligned stream into **2-second** chunks ("windows"), sliding
+forward by 0.25 seconds each time (windows overlap by 87.5%). Each window is
+one training example. An earlier version used 1 s; 2 s is the Phase 1
+handoff because the longer raw label is far more predictable (see the
+mid-semester report, window-length section).
 
 ## 4. Integrate (the model-free "prediction")
 For each window, we ask: *if all we had was the IMU readings, where would
@@ -50,8 +52,10 @@ ground-truth gyro/accel bias estimates that EuRoC already stores
 `err_dx_bc` / `err_dy_bc` / `err_dz_bc`.
 
 This is an **oracle diagnostic**: a live estimator would not be handed
-those biases. Features for Part C stay **raw IMU**. Do not treat
-`err_*_bc` as the main leaderboard unless the team later votes to.
+those biases. The 104 Part C features stay **raw IMU**. Do not treat
+`err_*_bc` as the main leaderboard. Fold-wise physics features
+(`phys_*`) use a *training-flight* bias calibration and are a separate
+table — they are not in the 104 inputs of the mid-semester models.
 
 Whether the residual is more motion-dependent is something Part B
 measures — it is not assumed.
@@ -79,7 +83,8 @@ check) rather than a deep bug in the math.
   `seq_id, window_id, t_start_ns, t_end_ns, err_mag_m, err_dx, err_dy, err_dz,
   err_mag_m_bc, err_dx_bc, err_dy_bc, err_dz_bc`
 - `data/processed/windows_raw_<seq>.npy`: the raw IMU readings for each
-  window, shape `(n_windows, 200, 6)`, columns `gx,gy,gz,ax,ay,az` — this
+  window, shape `(n_windows, 400, 6)`, columns `gx,gy,gz,ax,ay,az` — this
   is what Part C turns into features (never bias-corrected).
+  Phase 1 has 720 windows on MH_01_easy and 592 on MH_02_easy.
 - `results/diagnostics/window_length.csv`: mean raw vs bias-corrected
-  error at 0.25–2.0 s (Phase 2 D5 groundwork). Primary windows stay 1 s.
+  error at 0.25–2.0 s. Primary windows are **2.0 s**.
