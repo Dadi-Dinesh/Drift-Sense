@@ -6,7 +6,7 @@ Rigorous evaluation of learned visual-inertial odometry drift predictors require
 \subsection{Cross-Phase Comparability and Benchmark Anchoring}
 To ensure that performance variations are attributable strictly to architectural advances rather than data shifts or scaling discrepancies~\cite{r5melis2018}, our evaluation harness (\texttt{dl\_eval.py}) first reproduces Phase~1 benchmarks bit-for-bit on the identical leave-one-sequence-out splits (\texttt{splits.json}):
 \begin{itemize}
-    \item \textbf{Mean Baseline:} $\mathrm{MAE} = 4.53$\,cm, $R^2 = -0.06$.
+    \item \textbf{Mean Baseline:} $\mathrm{MAE} = 4.53$\,cm, $R^2 = -0.03$.
     \item \textbf{Phase 1 Tuned Lasso (E0):} $\mathrm{MAE} = 2.50$\,cm ($0.02504$\,m), $R^2 = 0.76$.
     \item \textbf{Calibrated Physics Prior:} $R^2 = 0.820$.
 \end{itemize}
@@ -44,10 +44,10 @@ E7 & Best Ensemble & Multi-modal & $2.18 \pm 0.06$ & $2.80$ & $0.81$ \\ \hline
 
 \subsection{Systematic Ablations (A1--A5)}
 \begin{itemize}
-    \item \textbf{A1 (Regularization):} Hyperparameter sensitivity on the validation block (\texttt{imu\_hparam\_grid.csv}) shows that an unregularized CNN without dropout converges rapidly in 8 epochs ($2.97$\,cm validation MAE), but requires full regularization (dropout $0.3$, weight decay $10^{-4}$) to prevent overfitting over 40 epochs, reaching $2.60 \pm 0.12$\,cm on held-out test flights.
+    \item \textbf{A1 (Regularization):} Committed results in \texttt{regularization\_a1.csv} reflect 8-epoch validation-only exploration: setting dropout to $0.0$ yields fast initial convergence ($2.97$\,cm validation MAE), while dropout $0.3$ gives $7.13$\,cm and a low learning rate ($10^{-4}$) severely underfits ($35.83$\,cm). These validation-only metrics evaluate early optimization dynamics rather than final test performance.
     \item \textbf{A2 (Data Scaling):} Evaluating chronological training prefix fractions ($50\% \to 75\% \to 100\%$) yields MAE of $2.12$\,cm, $2.21$\,cm, and $2.15$\,cm respectively ($R^2 \approx 0.82$ throughout). The non-monotone pattern confirms that the physics prior provides such a strong starting point that the residual converges even at $50\%$ ($251$ windows), and Hybrid~H2 is not data-bottlenecked at this scale.
     \item \textbf{A3 (Component Breakdown):} Isolating individual modalities reveals the inductive progression: Calibrated physics prior alone achieves $2.11$\,cm ($R^2 = 0.82$); 104 hand-crafted features alone reach $3.59$\,cm; fusing features with physics reaches $3.27$\,cm; raw IMU CNN achieves $2.60$\,cm; monocular camera alone achieves $4.42$\,cm; and the residual Hybrid~H2 achieves $2.15$\,cm, confirming that learning successfully refines the physical baseline without corrupting it.
-    \item \textbf{A4 (Seed Stability):} Grounding in physics renders Hybrid H2 exceptionally stable across random initializations ($\mathrm{std} = 0.012$\,cm), whereas unconstrained deep networks exhibit substantially larger variance (e.g., IMUcnn $\mathrm{std} = 0.117$\,cm; E6 direct $\mathrm{std} = 0.389$\,cm).
+    \item \textbf{A4 (Seed Stability):} Grounding in physics renders Hybrid H2 exceptionally stable across random initializations ($\mathrm{std} = 0.013$\,cm), whereas unconstrained deep networks exhibit substantially larger variance (e.g., IMUcnn $\mathrm{std} = 0.117$\,cm; E6 direct $\mathrm{std} = 0.389$\,cm).
     \item \textbf{A5 (Flight Segments):} Segmenting trajectories into take-off (first $20\%$) and steady cruise (remaining $80\%$) confirms that transient high-acceleration take-off dynamics exhibit substantially larger drift ($8.05$\,cm and $11.80$\,cm on Camera CNN), whereas the physics prior ($2.05$--$2.06$\,cm) and Hybrid H2 ($2.00 \pm 0.06$\,cm and $2.75 \pm 0.06$\,cm) maintain sub-$2.8$\,cm errors across both flight regimes.
 \end{itemize}
 
