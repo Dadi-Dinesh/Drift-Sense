@@ -36,3 +36,21 @@ python scripts/run_eda.py         # Part B figures → figures/eda/
 
 See [R1 data foundation](docs/r1_data_foundation.md) for leakage-safe splits,
 fold-local normalization, assumptions and reproduction commands.
+
+## Phase 2 — R5 Technical Validation, Ablations and Drift Correction
+
+See [Decisions Log](docs/decisions_log.md), [Viva Notes](docs/r5_viva.md), and [Literature Review](literature/r5_drift_evaluation.md) for full technical validation methodology.
+
+Reproduce all Phase 2 results, ablation tables, trajectory correction, and validation checks in one command:
+
+```bash
+bash run_phase2.sh
+```
+
+Or run individual verification tasks:
+
+```bash
+python scripts/collect_final_results.py --check
+pytest tests/test_dl_eval.py tests/test_correction.py -v
+```
+

@@ -21,13 +21,12 @@ Melis and Dyer examine reproducibility and evaluation integrity in neural networ
 2. Reporting mean and variance across multiple seeds.
 3. Isolating architectural components via systematic ablation sweeps.
 
-In our evaluation harness, E0 serves as the immutable anchor: Phase 1's Lasso (2.50 cm MAE) and Physics-only ($R^2 = 0.82$) models must be reproduced bit-for-bit before scoring any deep learning model. The A1–A5 ablations systematically isolate regularisation, training data scale, component contributions, seed sensitivity, and flight segments.
+In our evaluation harness, E0 serves as the immutable anchor: Phase 1's Lasso (2.50 cm MAE) and Physics-only ($R^2 = 0.82$) models must be reproduced bit-for-bit before scoring any deep learning model. The A1–A5 ablations systematically isolate regularisation, training data scale, component contributions, seed sensitivity (seeds 42, 43, 44), and flight segments across all 1,312 windows.
 [Primary paper: Melis & Dyer, ICLR 2018](https://arxiv.org/abs/1707.05589).
 
 ## Closed-Loop and Learned Dead-Reckoning Correction
 
 Brossard et al. (AI-IMU Dead-Reckoning) demonstrate that neural networks can predict IMU integration error parameters to constrain open-loop dead-reckoning. They show that subtracting predicted sensor errors within an extended Kalman filter or optimization graph reduces cumulative trajectory drift by orders of magnitude. 
 
-Our trajectory correction module (`correct_trajectory.py`) applies this concept in a discrete endpoint setting: subtracting the predicted 3D error vector from each window's dead-reckoned endpoint $\mathbf{p}_{k} = \mathbf{p}_{k}^{\text{DR}} - \hat{\mathbf{e}}_k$. For non-overlapping strides, this yields continuous reconstructed paths with >98% ATE reduction on EuRoC sequences, confirming that local window drift prediction translates directly into global navigational utility.
+Our trajectory correction module (`correct_trajectory.py`) applies this concept in a discrete endpoint setting: subtracting the predicted 3D error vector from each window's dead-reckoned endpoint $\mathbf{p}_{k} = \mathbf{p}_{k}^{\text{DR}} - \hat{\mathbf{e}}_k$ using the E4vec multi-task prediction head. For non-overlapping strides, this yields continuous reconstructed paths with >98% ATE reduction on EuRoC sequences, confirming that local window drift prediction translates directly into global navigational utility.
 [Primary paper: Brossard et al., IEEE T-IV 2020](https://doi.org/10.1109/TIV.2020.2980758).
-

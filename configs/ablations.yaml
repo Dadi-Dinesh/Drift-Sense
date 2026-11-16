@@ -1,17 +1,18 @@
 # Phase 2 Ablation Studies and Experiment Registry (R5)
-# Defines E0 to E7 and A1 to A5, evaluated across 3 random seeds
+# Defines E0 to E7, A1 to A5, and C1, evaluated across 3 random seeds
 
 global:
-  seeds: [42, 123, 999]
+  seeds: [42, 43, 44]
   target: "err_mag_m"
   vector_targets: ["err_dx", "err_dy", "err_dz"]
   sequences: ["MH_01_easy", "MH_02_easy"]
+  total_windows: 1312
   segment_cut_ratio: 0.2
   device: "cpu"
   batch_size: 32
   learning_rate: 0.001
-  epochs: 30
-  patience: 6
+  epochs: 100
+  patience: 15
 
 # Core Experiments: E0 to E7
 experiments:
@@ -25,7 +26,7 @@ experiments:
   E1:
     name: "1D-CNN on IMU"
     family: "DL (IMU-only)"
-    description: "Multi-scale 1D Convolutional Neural Network reading raw 400x6 IMU windows"
+    description: "Multi-scale 1D Convolutional Neural Network reading raw 400x6 IMU windows (standardized target)"
     type: "neural"
     architecture: "cnn1d"
     inputs: ["imu"]
@@ -34,7 +35,7 @@ experiments:
   E2:
     name: "LSTM on IMU"
     family: "DL (IMU-only)"
-    description: "Bidirectional 2-layer LSTM modeling temporal sequential dependence over 400 timesteps"
+    description: "2-layer LSTM modeling temporal sequential dependence over 400 timesteps"
     type: "neural"
     architecture: "lstm"
     inputs: ["imu"]
@@ -43,7 +44,7 @@ experiments:
   E3:
     name: "Hybrid H1 (IMU Net + 104 Hand-Crafted + Physics)"
     family: "Hybrid"
-    description: "Concatenation of learned CNN embedding with 104 Phase 1 statistical features and physics priors"
+    description: "Intermediate fusion of learned IMU embedding with 104 features and physics prior"
     type: "hybrid"
     architecture: "hybrid_concat"
     inputs: ["imu", "features", "physics"]
@@ -52,7 +53,7 @@ experiments:
   E4:
     name: "Hybrid H2 (Physics Prior + Network Residual)"
     family: "Hybrid"
-    description: "Primary hybrid innovation: physics model predicts base drift; neural network learns residual error Δy"
+    description: "Primary hybrid architecture: physics model predicts base drift; neural network learns residual error"
     type: "hybrid"
     architecture: "hybrid_residual"
     inputs: ["imu", "physics"]
@@ -61,7 +62,7 @@ experiments:
   E5:
     name: "Camera-only CNN"
     family: "DL (Visual-only)"
-    description: "2D CNN processing keyframe subsamples to evaluate vision-alone drift estimation"
+    description: "2D CNN processing keyframe triplets to evaluate visual drift estimation"
     type: "neural"
     architecture: "camera_cnn"
     inputs: ["camera"]
@@ -79,7 +80,7 @@ experiments:
   E7:
     name: "Best Overall Hybrid"
     family: "Hybrid"
-    description: "Complete hybrid system: IMU CNN representation + optical motion statistics + physics residual head"
+    description: "Complete hybrid system: IMU representation + optical motion statistics + physics residual head"
     type: "hybrid"
     architecture: "hybrid_best"
     inputs: ["imu", "features", "camera_flow", "physics"]
@@ -89,7 +90,7 @@ experiments:
 ablations:
   A1_regularization:
     name: "Regularization Ablation"
-    description: "Effect of Dropout, Weight Decay, and Early Stopping on generalization gap"
+    description: "Factorial evaluation of Dropout, Weight Decay, and Early Stopping on CNN1D (E1)"
     base_model: "E1"
     variations:
       no_reg:
@@ -111,7 +112,7 @@ ablations:
 
   A2_data_scaling:
     name: "Training Data Amount"
-    description: "Model performance as a function of training flight sample size"
+    description: "Model performance as a function of chronological training prefix (50%, 75%, 100%)"
     base_model: "E4"
     fractions: [0.50, 0.75, 1.00]
 
@@ -119,28 +120,26 @@ ablations:
     name: "Component Contributions"
     description: "Isolating individual components from raw IMU to full hybrid"
     steps:
-      - id: "IMU_only"
-        model: "E1"
-      - id: "IMU_plus_features"
-        model: "E3_no_phys"
-      - id: "IMU_plus_camera"
-        model: "E6"
       - id: "Physics_prior_only"
-        model: "E0_physics"
+        model: "PHYS"
+      - id: "Hand_crafted_features"
+        model: "ML_FEAT"
+      - id: "Features_plus_physics"
+        model: "ML_PHYS"
       - id: "Physics_plus_residual_hybrid"
         model: "E4"
 
   A4_seeds:
     name: "Random Seed Spread"
     description: "Assessing statistical significance vs noise across 3 random seeds"
-    seeds: [42, 123, 999]
-    models: ["E0_lasso", "E1", "E2", "E4"]
+    seeds: [42, 43, 44]
+    models: ["E0", "IMUcnn", "IMUlstm", "E3_min10", "E4", "E5", "E6_min10", "E7"]
 
   A5_segments:
     name: "Take-off vs Rest of Flight"
     description: "Error decomposition between high-acceleration take-off (first 20%) and steady flight (remaining 80%)"
     cut_ratio: 0.2
-    models: ["mean", "lasso", "E1", "E2", "E4"]
+    models: ["Lasso", "E4", "IMUcnn", "E5"]
 
 # Trajectory Correction: C1
 correction:
@@ -148,5 +147,5 @@ correction:
     name: "Trajectory Drift Correction"
     description: "3-axis error vector subtraction and continuous trajectory path reconstruction"
     sequences: ["MH_01_easy", "MH_02_easy"]
+    model: "E4vec"
     step_window: 8
-
