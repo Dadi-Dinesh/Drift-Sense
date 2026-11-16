@@ -224,35 +224,41 @@ def run_sequence_correction(
     # Resolve predicted drift vectors
     resolved_vec: np.ndarray | None = None
 
+    def _extract_from_df(df: pd.DataFrame) -> np.ndarray:
+        target_df = df
+        if "seq_id" in target_df.columns:
+            target_df = target_df[target_df["seq_id"] == seq_name]
+        on_cols = ["seq_id", "window_id"] if ("seq_id" in target_df.columns and "seq_id" in chain.columns) else ["window_id"]
+        merged = pd.merge(chain, target_df, on=on_cols, suffixes=("", "_pred"))
+        col_dx = "y_pred_dx" if "y_pred_dx" in merged.columns else ("phys_dx" if "phys_dx" in merged.columns else None)
+        col_dy = "y_pred_dy" if "y_pred_dy" in merged.columns else ("phys_dy" if "phys_dy" in merged.columns else None)
+        col_dz = "y_pred_dz" if "y_pred_dz" in merged.columns else ("phys_dz" if "phys_dz" in merged.columns else None)
+        if col_dx and col_dy and col_dz:
+            return merged[[col_dx, col_dy, col_dz]].to_numpy(dtype=np.float64)
+        raise ValueError("Could not find 3-axis prediction or physics columns (y_pred_dx/phys_dx) in input")
+
     if pred_vec is None:
         # Check E4vec prediction file
         e4vec_path = predictions_dir / f"E4vec_leave_{seq_name}.csv"
         if e4vec_path.exists():
             p_df = pd.read_csv(e4vec_path)
-            merged = pd.merge(chain, p_df, on="window_id", suffixes=("", "_pred"))
-            resolved_vec = merged[["y_pred_dx", "y_pred_dy", "y_pred_dz"]].to_numpy(dtype=np.float64)
+            resolved_vec = _extract_from_df(p_df)
         else:
             # Fall back to physics prior
             phys_path = processed_dir / f"physics_leave_{seq_name}.csv"
             if phys_path.exists():
                 p_df = pd.read_csv(phys_path)
-                merged = pd.merge(chain, p_df, on=["seq_id", "window_id"])
-                resolved_vec = merged[["phys_dx", "phys_dy", "phys_dz"]].to_numpy(dtype=np.float64)
+                resolved_vec = _extract_from_df(p_df)
             else:
                 resolved_vec = np.zeros((len(chain), 3), dtype=np.float64)
 
     elif isinstance(pred_vec, (str, Path)):
         p_df = pd.read_csv(pred_vec)
-        merged = pd.merge(chain, p_df, on="window_id", suffixes=("", "_pred"))
-        col_dx = "y_pred_dx" if "y_pred_dx" in merged.columns else "phys_dx"
-        col_dy = "y_pred_dy" if "y_pred_dy" in merged.columns else "phys_dy"
-        col_dz = "y_pred_dz" if "y_pred_dz" in merged.columns else "phys_dz"
-        resolved_vec = merged[[col_dx, col_dy, col_dz]].to_numpy(dtype=np.float64)
+        resolved_vec = _extract_from_df(p_df)
 
     elif isinstance(pred_vec, pd.DataFrame):
-        if "y_pred_dx" in pred_vec.columns and "window_id" in pred_vec.columns:
-            merged = pd.merge(chain, pred_vec, on="window_id", suffixes=("", "_pred"))
-            resolved_vec = merged[["y_pred_dx", "y_pred_dy", "y_pred_dz"]].to_numpy(dtype=np.float64)
+        if "window_id" in pred_vec.columns:
+            resolved_vec = _extract_from_df(pred_vec)
         elif len(pred_vec) == len(chain):
             resolved_vec = pred_vec.to_numpy(dtype=np.float64)
         else:
