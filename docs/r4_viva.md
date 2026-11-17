@@ -82,7 +82,7 @@ The MH_01 gain (0.01 cm) is noise; the MH_02 loss (0.10 cm) is larger than
 the spread, so physics really is better there.
 
 **Q: What does the camera add?**
-Variance, not accuracy. H3's seed std is up to 0.52 cm, and its MAE is
+Variance, not accuracy. H3's seed std is up to 0.51 cm, and its MAE is
 worse than IMU-only H1 on MH_02. This matches R3's E5 (camera alone ≈ mean
 baseline) and the Tier 1 Lasso check.
 
@@ -90,7 +90,7 @@ baseline) and the Tier 1 Lasso check.
 Prediction files `results/predictions/<exp>_<fold>.csv`, with seeds 43/44 as
 `<exp>_seed<s>_<fold>.csv`; `PHYS_<fold>.csv`; and `E4vec_*` files with
 `y_pred_dx/dy/dz` for drift correction. Physics alone reduces the mean error
-vector from about 121 cm to 5.5–6.6 cm; E4vec gives 5.7–6.4 cm.
+vector from about 121 cm to 5.29–6.90 cm; E4vec gives 5.37–6.54 cm.
 
 **Q: How is a missing camera handled?**
 Its branch contributes a zero embedding, so the other branches still

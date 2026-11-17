@@ -41,7 +41,7 @@ fold-local normalization, assumptions and reproduction commands.
 
 See [Decisions Log](docs/decisions_log.md), [Viva Notes](docs/r5_viva.md), and [Literature Review](literature/r5_drift_evaluation.md) for full technical validation methodology.
 
-Reproduce all Phase 2 results, ablation tables, trajectory correction, and validation checks in one command:
+Re-score saved Phase 2 predictions, generate all ablation tables in `results/ablations/`, run trajectory dead-reckoning correction, regenerate figures, and execute the 12-test R5 verification suite in one command:
 
 ```bash
 bash run_phase2.sh

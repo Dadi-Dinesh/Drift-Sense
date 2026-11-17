@@ -130,7 +130,14 @@ def collect_components_a3() -> pd.DataFrame:
         ("PHYS", "Calibrated physics prior alone", "Physics"),
         ("ML_FEAT", "Lasso on 104 hand-crafted features", "Hand-crafted"),
         ("ML_PHYS", "Lasso on features + physics", "Hand-crafted + Physics"),
-        ("E4", "Hybrid H2: Physics + learned residual", "Full Hybrid"),
+        ("IMUcnn", "1D-CNN on raw IMU (standardized target)", "DL (IMU raw)"),
+        ("IMUlstm", "LSTM on raw IMU (standardized target)", "DL (IMU raw)"),
+        ("E5", "Camera CNN (visual-only)", "DL (Visual)"),
+        ("E3_min10", "Hybrid H1: IMU + features + physics (early fusion)", "Hybrid"),
+        ("E4", "Hybrid H2: Physics + learned residual (LSTM)", "Full Hybrid"),
+        ("E4cnn", "Hybrid H2: Physics + learned residual (CNN)", "Full Hybrid"),
+        ("E6_min10", "Hybrid H3: IMU + Camera CNN (bi-modal)", "Hybrid"),
+        ("E7", "Best Overall Hybrid (validation selected)", "Ensemble"),
     ]
 
     for prefix, desc, comp_type in comp_defs:
@@ -203,7 +210,27 @@ def collect_segments_a5(p1_benchmarks: pd.DataFrame) -> pd.DataFrame:
     """A5: First-20% (take-off) vs remaining-80% (steady cruise) flight segment evaluation."""
     rows = []
 
-    # Phase 1 Lasso
+    # 1. Physics Prior (PHYS)
+    for seq in SEQUENCES:
+        p_path = PRED_DIR / f"PHYS_leave_{seq}.csv"
+        if p_path.exists():
+            df = pd.read_csv(p_path)
+            w_df = pd.read_csv(PROCESSED_DIR / f"windows_{seq}.csv")
+            merged = pd.merge(df, w_df[["window_id", "t_start_ns"]], on="window_id")
+            seg = score_segments(merged)
+            rows.append({
+                "ablation": "A5_segments",
+                "model": "Physics Prior",
+                "flight": seq,
+                "takeoff_mae_cm": seg["first_20"]["mae"] * 100.0,
+                "takeoff_mae_std_cm": 0.0,
+                "takeoff_r2": seg["first_20"]["r2"],
+                "steady_mae_cm": seg["remaining_80"]["mae"] * 100.0,
+                "steady_mae_std_cm": 0.0,
+                "steady_r2": seg["remaining_80"]["r2"],
+            })
+
+    # 2. Phase 1 Lasso
     for seq in SEQUENCES:
         df = pd.read_csv(PRED_DIR / f"T1_lasso_leave_{seq}.csv")
         w_df = pd.read_csv(PROCESSED_DIR / f"windows_{seq}.csv")
@@ -214,12 +241,14 @@ def collect_segments_a5(p1_benchmarks: pd.DataFrame) -> pd.DataFrame:
             "model": "Phase 1 Lasso",
             "flight": seq,
             "takeoff_mae_cm": seg["first_20"]["mae"] * 100.0,
+            "takeoff_mae_std_cm": 0.0,
             "takeoff_r2": seg["first_20"]["r2"],
             "steady_mae_cm": seg["remaining_80"]["mae"] * 100.0,
+            "steady_mae_std_cm": 0.0,
             "steady_r2": seg["remaining_80"]["r2"],
         })
 
-    # Deep learning models
+    # 3. Deep learning models (evaluated over 3 seeds: 42, 43, 44)
     eval_models = [
         ("Hybrid H2 (E4)", "E4"),
         ("1D-CNN (IMUcnn)", "IMUcnn"),
@@ -228,50 +257,104 @@ def collect_segments_a5(p1_benchmarks: pd.DataFrame) -> pd.DataFrame:
 
     for model_name, prefix in eval_models:
         for seq in SEQUENCES:
-            fpath = PRED_DIR / f"{prefix}_leave_{seq}.csv"
-            if not fpath.exists():
-                continue
-            df = pd.read_csv(fpath)
             w_df = pd.read_csv(PROCESSED_DIR / f"windows_{seq}.csv")
-            merged = pd.merge(df, w_df[["window_id", "t_start_ns"]], on="window_id")
-            seg = score_segments(merged)
-            rows.append({
-                "ablation": "A5_segments",
-                "model": model_name,
-                "flight": seq,
-                "takeoff_mae_cm": seg["first_20"]["mae"] * 100.0,
-                "takeoff_r2": seg["first_20"]["r2"],
-                "steady_mae_cm": seg["remaining_80"]["mae"] * 100.0,
-                "steady_r2": seg["remaining_80"]["r2"],
-            })
+            takeoffs, steadies = [], []
+            takeoff_r2s, steady_r2s = [], []
+            for s in SEEDS:
+                suffix = f"_seed{s}" if s != 42 else ""
+                fpath = PRED_DIR / f"{prefix}{suffix}_leave_{seq}.csv"
+                if fpath.exists():
+                    df = pd.read_csv(fpath)
+                    merged = pd.merge(df, w_df[["window_id", "t_start_ns"]], on="window_id")
+                    seg = score_segments(merged)
+                    takeoffs.append(seg["first_20"]["mae"] * 100.0)
+                    steadies.append(seg["remaining_80"]["mae"] * 100.0)
+                    takeoff_r2s.append(seg["first_20"]["r2"])
+                    steady_r2s.append(seg["remaining_80"]["r2"])
+
+            if takeoffs:
+                rows.append({
+                    "ablation": "A5_segments",
+                    "model": model_name,
+                    "flight": seq,
+                    "takeoff_mae_cm": float(np.mean(takeoffs)),
+                    "takeoff_mae_std_cm": float(np.std(takeoffs)),
+                    "takeoff_r2": float(np.mean(takeoff_r2s)),
+                    "steady_mae_cm": float(np.mean(steadies)),
+                    "steady_mae_std_cm": float(np.std(steadies)),
+                    "steady_r2": float(np.mean(steady_r2s)),
+                })
 
     return pd.DataFrame(rows)
 
 
 def collect_correction_c1() -> pd.DataFrame:
-    """C1: Dead-reckoning trajectory correction using E4vec predicted 3-axis drift vector."""
+    """C1: Dead-reckoning trajectory correction (Physics-only vs E4vec across seeds 42, 43, 44)."""
     TRAJ_DIR.mkdir(parents=True, exist_ok=True)
     rows = []
 
     for seq in SEQUENCES:
-        e4vec_file = PRED_DIR / f"E4vec_leave_{seq}.csv"
-        comp, traj_df = run_sequence_correction(seq, pred_vec=e4vec_file if e4vec_file.exists() else None)
+        # 1. Physics-only baseline
+        phys_file = PROCESSED_DIR / f"physics_leave_{seq}.csv"
+        comp_phys, _ = run_sequence_correction(seq, pred_vec=phys_file if phys_file.exists() else None)
+        rows.append({
+            "method": "Physics-only",
+            "sequence": f"{seq} (Physics-only)",
+            "windows_count": len(_) - 1,
+            "endpoint_mae_before_cm": comp_phys["mae_before"] * 100.0,
+            "endpoint_mae_after_cm": comp_phys["mae_after"] * 100.0,
+            "endpoint_reduction_pct": comp_phys["drift_reduction_pct"],
+            "cumulative_ate_raw_m": comp_phys["mean_ate_raw"],
+            "cumulative_ate_corr_m": comp_phys["mean_ate_corr"],
+            "final_drift_raw_m": comp_phys["final_ate_raw"],
+            "final_drift_corr_m": comp_phys["final_ate_corr"],
+            "ate_reduction_pct": comp_phys["ate_reduction_pct"],
+        })
 
+        # 2. E4vec seed 42 (authoritative trajectory plot)
+        e4vec_42 = PRED_DIR / f"E4vec_leave_{seq}.csv"
+        comp_42, traj_df = run_sequence_correction(seq, pred_vec=e4vec_42 if e4vec_42.exists() else None)
         out_csv = TRAJ_DIR / f"trajectory_{seq}.csv"
         traj_df.to_csv(out_csv, index=False)
 
         rows.append({
-            "sequence": seq,
+            "method": "E4vec (seed 42)",
+            "sequence": f"{seq} (E4vec seed 42)",
             "windows_count": len(traj_df) - 1,
-            "endpoint_mae_before_cm": comp["mae_before"] * 100.0,
-            "endpoint_mae_after_cm": comp["mae_after"] * 100.0,
-            "endpoint_reduction_pct": comp["drift_reduction_pct"],
-            "cumulative_ate_raw_m": comp["mean_ate_raw"],
-            "cumulative_ate_corr_m": comp["mean_ate_corr"],
-            "final_drift_raw_m": comp["final_ate_raw"],
-            "final_drift_corr_m": comp["final_ate_corr"],
-            "ate_reduction_pct": comp["ate_reduction_pct"],
+            "endpoint_mae_before_cm": comp_42["mae_before"] * 100.0,
+            "endpoint_mae_after_cm": comp_42["mae_after"] * 100.0,
+            "endpoint_reduction_pct": comp_42["drift_reduction_pct"],
+            "cumulative_ate_raw_m": comp_42["mean_ate_raw"],
+            "cumulative_ate_corr_m": comp_42["mean_ate_corr"],
+            "final_drift_raw_m": comp_42["final_ate_raw"],
+            "final_drift_corr_m": comp_42["final_ate_corr"],
+            "ate_reduction_pct": comp_42["ate_reduction_pct"],
         })
+
+        # 3. E4vec 3-seed evaluation
+        maes, ates, reductions = [], [], []
+        for s in SEEDS:
+            fpath = PRED_DIR / f"E4vec_leave_{seq}.csv" if s == 42 else PRED_DIR / f"E4vec_seed{s}_leave_{seq}.csv"
+            if fpath.exists():
+                comp_s, _ = run_sequence_correction(seq, pred_vec=fpath)
+                maes.append(comp_s["mae_after"] * 100.0)
+                ates.append(comp_s["final_ate_corr"])
+                reductions.append(comp_s["ate_reduction_pct"])
+
+        if maes:
+            rows.append({
+                "method": "E4vec (3-seed mean)",
+                "sequence": f"{seq} (E4vec 3-seed)",
+                "windows_count": len(traj_df) - 1,
+                "endpoint_mae_before_cm": comp_42["mae_before"] * 100.0,
+                "endpoint_mae_after_cm": float(np.mean(maes)),
+                "endpoint_reduction_pct": float(np.mean(reductions)),
+                "cumulative_ate_raw_m": comp_42["mean_ate_raw"],
+                "cumulative_ate_corr_m": float(np.mean(ates)),
+                "final_drift_raw_m": comp_42["final_ate_raw"],
+                "final_drift_corr_m": float(np.mean(ates)),
+                "ate_reduction_pct": float(np.mean(reductions)),
+            })
 
     return pd.DataFrame(rows)
 
