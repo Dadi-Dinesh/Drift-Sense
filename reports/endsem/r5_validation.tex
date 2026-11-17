@@ -6,33 +6,37 @@ Rigorous evaluation of learned visual-inertial odometry drift predictors require
 \subsection{Cross-Phase Comparability and Benchmark Anchoring}
 To ensure that performance variations are attributable strictly to architectural advances rather than data shifts or scaling discrepancies~\cite{r5melis2018}, our evaluation harness (\texttt{dl\_eval.py}) first reproduces Phase~1 benchmarks bit-for-bit on the identical leave-one-sequence-out splits (\texttt{splits.json}):
 \begin{itemize}
-    \item \textbf{Mean Baseline:} $\mathrm{MAE} = 4.53$\,cm, $R^2 = -0.06$.
+    \item \textbf{Mean Baseline:} $\mathrm{MAE} = 4.53$\,cm, $R^2 = -0.03$.
     \item \textbf{Phase 1 Tuned Lasso (E0):} $\mathrm{MAE} = 2.50$\,cm ($0.02504$\,m), $R^2 = 0.76$.
     \item \textbf{Calibrated Physics Prior:} $R^2 = 0.820$.
 \end{itemize}
 Unit tests (\texttt{test\_dl\_eval.py}) strictly enforce reproduction of these anchors before downstream models are evaluated.
 
 \subsection{Core Experiment Suite (E0--E7)}
-Table~\ref{tab:ablation_experiments} compares all model families over 3 random seeds ($42, 43, 44$) on the $1{,}312$ total windows ($720$ on MH\_01\_easy, $592$ on MH\_02\_easy). With standardized target scaling, the 1D-CNN (E1) achieves $2.60 \pm 0.12$\,cm MAE and $R^2 = 0.72$, while LSTM (E2) reaches $3.69 \pm 0.06$\,cm MAE. Intermediate feature concatenation (H1, E3) reaches $2.64 \pm 0.03$\,cm MAE with warm-up.
+Table~\ref{tab:ablation_experiments} compares all model families over 3 random seeds ($42, 43, 44$) on the $1{,}312$ total windows ($720$ on MH\_01\_easy, $592$ on MH\_02\_easy). Training unconstrained networks on the raw IMU target without normalization (E1) yields severe underfitting ($\mathrm{MAE} = 13.87$\,cm, $R^2 = -8.55$). With standardized target scaling ($\bar{y} + s \cdot z$), the 1D-CNN (IMUcnn) achieves $2.60 \pm 0.12$\,cm MAE and $R^2 = 0.72$, while LSTM (IMUlstm) reaches $3.69 \pm 0.06$\,cm MAE ($3.52$\,cm on raw target, E2). Early-fusion intermediate feature concatenation (H1) reaches $3.15 \pm 0.08$\,cm directly (E3) and $2.64 \pm 0.03$\,cm with a 10-epoch validation warm-up (E3\_min10). Camera-only CNN (E5) achieves $4.42 \pm 0.12$\,cm, confirming that low-resolution monocular frames without metric scale cannot infer absolute translational drift alone.
 
 In contrast, \textbf{Hybrid H2 (E4)} leverages the analytical physics drift prediction as an immutable base prior ($\hat{y} = a \cdot \mathrm{phys\_mag} + b + s \cdot z$) with a zero-initialized residual head. This achieves \textbf{$2.15 \pm 0.01$\,cm MAE} with the LSTM encoder and \textbf{$2.13 \pm 0.02$\,cm MAE} ($R^2 = 0.82$) with the CNN encoder (E4cnn), successfully outperforming the Phase~1 Lasso baseline ($2.50$\,cm) by over $14\%$ across both test flights with negligible seed variance.
 
 \begin{table}[t]
 \centering
-\caption{Cross-model validation and ablation results (mean $\pm$ std over seeds 42, 43, 44).}
+\caption{Cross-model validation and ablation results (mean $\pm$ std over seeds 42, 43, 44, evaluated on 1,312 windows).}
 \label{tab:ablation_experiments}
 \resizebox{\columnwidth}{!}{%
 \begin{tabular}{lllccc}
 \hline
 \textbf{ID} & \textbf{Model Family} & \textbf{Inputs} & \textbf{MAE (cm)} & \textbf{RMSE (cm)} & \textbf{$R^2$} \\ \hline
 E0 & Phase 1 Lasso & 104 Hand-crafted & $2.50 \pm 0.00$ & $3.23$ & $0.76$ \\
-E1 & 1D-CNN & Raw IMU (std target) & $2.60 \pm 0.12$ & $3.47$ & $0.72$ \\
-E2 & LSTM & Raw IMU (std target) & $3.69 \pm 0.06$ & $5.70$ & $0.31$ \\
-E3 & Hybrid H1 & IMU + Feat + Phys & $2.64 \pm 0.03$ & $3.46$ & $0.73$ \\
+E1 & 1D-CNN (raw target) & Raw IMU & $13.87$ & $21.29$ & $-8.55$ \\
+IMUcnn & 1D-CNN (std target) & Raw IMU & $2.60 \pm 0.12$ & $3.47$ & $0.72$ \\
+E2 & LSTM (raw target) & Raw IMU & $3.52$ & $4.66$ & $0.50$ \\
+IMUlstm & LSTM (std target) & Raw IMU & $3.69 \pm 0.06$ & $5.70$ & $0.31$ \\
+E3 & Hybrid H1 (direct) & IMU + Feat + Phys & $3.15 \pm 0.08$ & $4.73$ & $0.53$ \\
+E3\_min10 & Hybrid H1 (warm-up) & IMU + Feat + Phys & $2.64 \pm 0.03$ & $3.46$ & $0.73$ \\
 \textbf{E4} & \textbf{Hybrid H2 (LSTM)} & \textbf{Phys + Residual} & $\mathbf{2.15 \pm 0.01}$ & $\mathbf{2.77}$ & $\mathbf{0.82}$ \\
 \textbf{E4cnn} & \textbf{Hybrid H2 (CNN)} & \textbf{Phys + Residual} & $\mathbf{2.13 \pm 0.02}$ & $\mathbf{2.73}$ & $\mathbf{0.82}$ \\
 E5 & Camera CNN & $3 \times 64 \times 64$ frames & $4.42 \pm 0.12$ & $6.56$ & $0.07$ \\
-E6 & Hybrid H3 & IMU + Camera & $2.85 \pm 0.05$ & $3.96$ & $0.64$ \\
+E6 & Hybrid H3 (direct) & IMU + Camera & $3.52 \pm 0.39$ & $5.39$ & $0.38$ \\
+E6\_min10 & Hybrid H3 (warm-up) & IMU + Camera & $2.85 \pm 0.05$ & $3.96$ & $0.64$ \\
 E7 & Best Ensemble & Multi-modal & $2.18 \pm 0.06$ & $2.80$ & $0.81$ \\ \hline
 \end{tabular}%
 }
@@ -40,11 +44,11 @@ E7 & Best Ensemble & Multi-modal & $2.18 \pm 0.06$ & $2.80$ & $0.81$ \\ \hline
 
 \subsection{Systematic Ablations (A1--A5)}
 \begin{itemize}
-    \item \textbf{A1 (Regularization):} Full regularization with dropout ($0.3$) and weight decay ($10^{-4}$) stabilizes CNN training ($2.60$\,cm MAE vs $2.79$\,cm unregularized).
+    \item \textbf{A1 (Regularization):} Committed results in \texttt{regularization\_a1.csv} reflect 8-epoch validation-only exploration: setting dropout to $0.0$ yields fast initial convergence ($2.97$\,cm validation MAE), while dropout $0.3$ gives $7.13$\,cm and a low learning rate ($10^{-4}$) severely underfits ($35.83$\,cm). These validation-only metrics evaluate early optimization dynamics rather than final test performance.
     \item \textbf{A2 (Data Scaling):} Evaluating chronological training prefix fractions ($50\% \to 75\% \to 100\%$) yields MAE of $2.12$\,cm, $2.21$\,cm, and $2.15$\,cm respectively ($R^2 \approx 0.82$ throughout). The non-monotone pattern confirms that the physics prior provides such a strong starting point that the residual converges even at $50\%$ ($251$ windows), and Hybrid~H2 is not data-bottlenecked at this scale.
-    \item \textbf{A3 (Component Breakdown):} Physics prior alone yields $2.11$\,cm ($R^2 = 0.82$); 104 hand-crafted features alone reach $3.59$\,cm; fusing them into H2 yields $2.15$\,cm, proving that residual networks refine physical models without degradation.
-    \item \textbf{A4 (Seed Stability):} Grounding in physics renders Hybrid H2 exceptionally stable across random initializations ($\mathrm{std} = 0.012$\,cm), whereas unconstrained deep networks exhibit larger variance.
-    \item \textbf{A5 (Flight Segments):} Segmenting trajectories into take-off (first $20\%$) and steady cruise (remaining $80\%$) confirms that take-off dynamics exhibit substantially larger drift ($8.6$--$12.2$\,cm on Camera CNN), whereas Hybrid H2 preserves sub-$2.8$\,cm error across both flight phases.
+    \item \textbf{A3 (Component Breakdown):} Isolating individual modalities reveals the inductive progression: Calibrated physics prior alone achieves $2.11$\,cm ($R^2 = 0.82$); 104 hand-crafted features alone reach $3.59$\,cm; fusing features with physics reaches $3.27$\,cm; raw IMU CNN achieves $2.60$\,cm; monocular camera alone achieves $4.42$\,cm; and the residual Hybrid~H2 achieves $2.15$\,cm, confirming that learning successfully refines the physical baseline without corrupting it.
+    \item \textbf{A4 (Seed Stability):} Grounding in physics renders Hybrid H2 exceptionally stable across random initializations ($\mathrm{std} = 0.013$\,cm), whereas unconstrained deep networks exhibit substantially larger variance (e.g., IMUcnn $\mathrm{std} = 0.117$\,cm; E6 direct $\mathrm{std} = 0.389$\,cm).
+    \item \textbf{A5 (Flight Segments):} Segmenting trajectories into take-off (first $20\%$) and steady cruise (remaining $80\%$) confirms that transient high-acceleration take-off dynamics exhibit substantially larger drift ($8.05$\,cm and $11.80$\,cm on Camera CNN), whereas the physics prior ($2.05$--$2.06$\,cm) and Hybrid H2 ($2.00 \pm 0.06$\,cm and $2.75 \pm 0.06$\,cm) maintain sub-$2.8$\,cm errors across both flight regimes.
 \end{itemize}
 
 \subsection{Trajectory Drift Correction}
@@ -52,7 +56,7 @@ To demonstrate closed-loop utility, \texttt{correct\_trajectory.py} reconstructs
 \begin{equation}
 \mathbf{p}_{\mathrm{corrected}}^{(k)} = \mathbf{p}_{\mathrm{dead\text{-}reckoned}}^{(k)} - \hat{\mathbf{e}}^{(k)}.
 \end{equation}
-As shown in Table~\ref{tab:trajectory_correction}, trajectory drift correction reduces per-window endpoint MAE by over $94\%$ and cumulative Absolute Trajectory Error (ATE) by $\mathbf{>98\%}$ on both test sequences (from $87.09$\,m down to $1.49$\,m on MH\_01\_easy, and $72.09$\,m down to $0.83$\,m on MH\_02\_easy).
+As shown in Table~\ref{tab:trajectory_correction}, trajectory drift correction reduces per-window endpoint MAE by over $94\%$ and cumulative Absolute Trajectory Error (ATE) by $\mathbf{>98\%}$ on both test sequences. On MH\_01\_easy, E4vec achieves $1.49$\,m final ATE (outperforming physics-only $1.66$\,m). On MH\_02\_easy, physics-only achieves $0.57$\,m final ATE compared to E4vec's $0.83$\,m ($0.89 \pm 0.04$\,m across 3 seeds), demonstrating that while cumulative path integration varies slightly with residual noise, both methods eliminate over $98\%$ of gross sensor dead-reckoning drift ($87.09$\,m and $72.09$\,m raw).
 
 \begin{table}[t]
 \centering
@@ -61,9 +65,15 @@ As shown in Table~\ref{tab:trajectory_correction}, trajectory drift correction r
 \resizebox{\columnwidth}{!}{%
 \begin{tabular}{lccccc}
 \hline
-\textbf{Sequence} & \textbf{Windows} & \textbf{Raw MAE (cm)} & \textbf{Corr MAE (cm)} & \textbf{Raw ATE (m)} & \textbf{Corr ATE (m)} \\ \hline
-MH\_01\_easy & 90 & $121.5$ & $6.54$ ($-94.6\%$) & $87.09$ & $\mathbf{1.49}$ ($\mathbf{-98.1\%}$) \\
-MH\_02\_easy & 74 & $120.0$ & $5.37$ ($-95.5\%$) & $72.09$ & $\mathbf{0.83}$ ($\mathbf{-98.5\%}$) \\ \hline
+\textbf{Sequence / Method} & \textbf{Windows} & \textbf{Raw MAE (cm)} & \textbf{Corr MAE (cm)} & \textbf{Raw ATE (m)} & \textbf{Corr ATE (m)} \\ \hline
+\textbf{MH\_01\_easy} & & & & & \\
+-- Physics-only & 90 & $121.5$ & $6.90$ ($-94.3\%$) & $87.09$ & $1.66$ ($-98.0\%$) \\
+-- E4vec (seed 42) & 90 & $121.5$ & $\mathbf{6.54}$ ($\mathbf{-94.6\%}$) & $87.09$ & $\mathbf{1.49}$ ($\mathbf{-98.1\%}$) \\
+-- E4vec (3-seed mean) & 90 & $121.5$ & $6.73 \pm 0.14$ ($-94.5\%$) & $87.09$ & $1.51 \pm 0.02$ ($-98.1\%$) \\ \hline
+\textbf{MH\_02\_easy} & & & & & \\
+-- Physics-only & 74 & $120.0$ & $\mathbf{5.29}$ ($\mathbf{-95.6\%}$) & $72.09$ & $\mathbf{0.57}$ ($\mathbf{-99.0\%}$) \\
+-- E4vec (seed 42) & 74 & $120.0$ & $5.37$ ($-95.5\%$) & $72.09$ & $0.83$ ($-98.5\%$) \\
+-- E4vec (3-seed mean) & 74 & $120.0$ & $5.43 \pm 0.05$ ($-95.5\%$) & $72.09$ & $0.89 \pm 0.04$ ($-98.6\%$) \\ \hline
 \end{tabular}%
 }
 \end{table}

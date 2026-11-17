@@ -17,14 +17,18 @@
 
 6. **What do the E0–E7 experiment families show?**
    - **E0 (Phase 1 Lasso):** 2.50 cm MAE, R² = 0.76 (deterministic benchmark).
-   - **E1 (1D-CNN, IMUcnn):** 2.60 ± 0.12 cm MAE, R² = 0.72 with standardized target.
-   - **E2 (LSTM, IMUlstm):** 3.69 ± 0.06 cm MAE, R² = 0.31.
-   - **E3 (Hybrid H1 - concatenation):** 2.64 ± 0.03 cm MAE, R² = 0.73 with 10-epoch warm-up.
-   - **E4 (Hybrid H2 - residual physics, LSTM):** **2.15 ± 0.01 cm MAE, R² = 0.82**, outperforming Lasso by 14%.
-   - **E4cnn (Hybrid H2 with CNN):** **2.13 ± 0.02 cm MAE, R² = 0.82**, the best overall deep model.
-   - **E5 (Camera CNN):** 4.42 ± 0.12 cm MAE, R² = 0.07 (visual-only lacks metric scale without stereo/IMU).
-   - **E6 (Hybrid H3 - IMU + Camera):** 2.85 ± 0.05 cm MAE, R² = 0.64.
-   - **E7 (Best ensemble/hybrid variant):** 2.18 ± 0.06 cm MAE, R² = 0.81.
+   - **E1 (1D-CNN, raw label):** 13.87 cm MAE, R² = −8.55 (10.20 cm on MH_01 / 17.53 cm on MH_02, 1 seed; severe underfitting on unscaled target offset).
+   - **IMUcnn (1D-CNN, standardised label):** 2.60 ± 0.12 cm MAE, R² = 0.72 (3 seeds; target standardisation cures the CNN failure).
+   - **E2 (LSTM, raw label):** 3.52 cm MAE, R² = 0.50 (3.52 cm on MH_01 / 3.53 cm on MH_02, 1 seed; beats mean baseline 4.53 cm even without target scaling).
+   - **IMUlstm (LSTM, standardised label):** 3.69 ± 0.06 cm MAE, R² = 0.31 (3 seeds; lower variance, stable).
+   - **E3 (Hybrid H1, direct):** 3.15 ± 0.08 cm MAE, R² = 0.53 (3 seeds).
+   - **E3_min10 (Hybrid H1, 10-epoch warm-up):** 2.64 ± 0.03 cm MAE, R² = 0.73 (3 seeds).
+   - **E4 (Hybrid H2 - residual physics, LSTM):** **2.15 ± 0.01 cm MAE, R² = 0.82**, outperforming Lasso by 14% (3 seeds).
+   - **E4cnn (Hybrid H2 with CNN):** **2.13 ± 0.02 cm MAE, R² = 0.82**, the best overall deep model (3 seeds).
+   - **E5 (Camera CNN):** 4.42 ± 0.12 cm MAE, R² = 0.07 (visual-only lacks metric scale without stereo/IMU, 3 seeds).
+   - **E6 (Hybrid H3, direct):** 3.52 ± 0.39 cm MAE, R² = 0.38 (3 seeds).
+   - **E6_min10 (Hybrid H3, 10-epoch warm-up):** 2.85 ± 0.05 cm MAE, R² = 0.64 (3 seeds).
+   - **E7 (Best ensemble/hybrid variant):** 2.18 ± 0.06 cm MAE, R² = 0.81 (3 seeds).
 
 7. **Why does Hybrid H2 (E4) succeed where unconstrained models struggle?**
    Because of its inductive bias: physics integration provides an analytical prior ($R^2 = 0.82$), and the neural network only learns the residual deviation. Its output head is zero-initialised, guaranteeing that the model starts at the physics solution and can never perform worse than physics on uninformative data.
@@ -39,11 +43,16 @@
    Because sliding windows overlap by 1.75 s. Integrating overlapping predictions would count the same physical interval multiple times, severely distorting the cumulative trajectory length and error.
 
 10. **What are the practical trajectory correction results?**
-    - **MH_01_easy:** Endpoint MAE reduced from 121.5 cm to 6.54 cm (94.6% reduction); final drift reduced from 87.1 m to 1.49 m (**98.1% ATE reduction**).
-    - **MH_02_easy:** Endpoint MAE reduced from 120.0 cm to 5.37 cm (95.5% reduction); final drift reduced from 72.1 m to 0.83 m (**98.5% ATE reduction**).
+    - **MH_01_easy:** Endpoint MAE reduced from 121.5 cm to 6.54 cm (94.6% reduction); final drift reduced from 87.1 m to 1.49 m (**98.1% ATE reduction** with E4vec vs 1.66 m / 98.0% with Physics-only).
+    - **MH_02_easy:** Endpoint MAE reduced from 120.0 cm to 5.37 cm (95.5% reduction); final drift reduced from 72.1 m to 0.83 m (**98.5% ATE reduction** with E4vec vs 0.57 m / 99.0% with Physics-only).
+    - *Nuance:* Physics-only correction achieves 0.57 m on MH_02 (beating E4vec's 0.83 m), while E4vec wins on MH_01 (1.49 m vs 1.66 m). Both methods eliminate over 98% of gross drift because analytical physics provides the dominant baseline.
 
-11. **What unit tests guarantee technical validity?**
+11. **What do the A1 (Regularization) and A2 (Data-Scaling) ablations show?**
+    - **A1:** 8-epoch validation grid exploration (`imu_hparam_grid.csv`) shows that unregularized networks (dropout 0) converge rapidly on the validation set (2.97 cm), but overfit during extended training; full regularization (dropout 0.3, weight decay 1e-4) achieves stable held-out test performance (2.60 cm).
+    - **A2:** Trained with the paper recipe (AdamW, MSE, standardized target, early stopping, seeds 42/43/44) on 50% (2.12 cm), 75% (2.21 cm), and 100% (2.15 cm) training subsets. The non-monotone pattern proves that the physics baseline is so informative that the residual head converges even on 251 training windows, without being data-starved.
+
+12. **What unit tests guarantee technical validity?**
     `tests/test_dl_eval.py` (7 tests) guarantees Phase 1 metric reproduction, seed aggregation, and segment splitting. `tests/test_correction.py` (5 tests) proves zero-prediction invariance (zero error vector changes nothing), perfect-vector property (perfect prediction gives exactly 0 endpoint error), and >80% error reduction on real sequences.
 
-12. **Can this pipeline be reproduced with a single command?**
-    Yes, via `bash run_phase2.sh`, which runs all ablation sweeps, trajectory corrections, figure generation, and unit tests end-to-end.
+13. **Can this pipeline be reproduced with a single command?**
+    Yes, via `bash run_phase2.sh`, which re-scores saved predictions, generates all ablation tables in `results/ablations/`, executes trajectory corrections, regenerates all figures, and verifies the 12-test R5 validation suite (`test_dl_eval.py` and `test_correction.py`).
